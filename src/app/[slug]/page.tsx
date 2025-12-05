@@ -1,0 +1,854 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
+
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
+import Image from "next/image";
+import { useState, useEffect, useRef } from "react";
+import { Plus, Minus, ShoppingCart, Bell, BellRing, Star, Heart, Clock, ChefHat, CheckCircle2, Utensils, X } from "lucide-react";
+
+// UI Components
+import { Button } from "@/components/ui/Button";
+import { Drawer } from "@/components/ui/Drawer";
+import { Modal } from "@/components/ui/Modal";
+import { Input } from "@/components/ui/Input";
+import { Toast } from "@/components/ui/Toast";
+import { SearchBar } from "@/components/ui/SearchBar";
+import { UpsellModal, UpsellItem } from "@/components/ui/UpsellModal";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+
+interface CartItem {
+    menuItemId: string;
+    name: string;
+    price: number;
+    quantity: number;
+    notes?: string;
+    imageUrl?: string;
+    isUpsell?: boolean;
+}
+
+// Mock Upsell Data removed - using real modifiers now
+
+export default function CustomerMenuPage() {
+    const params = useParams();
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const slug = params.slug as string;
+    const tableParam = searchParams.get("table");
+    const { t, direction, language } = useLanguage();
+
+    // State
+    const [tableNumber, setTableNumber] = useState<string | null>(tableParam);
+    const [showTableSelector, setShowTableSelector] = useState(false);
+    const [tableInput, setTableInput] = useState("");
+
+    const [cart, setCart] = useState<CartItem[]>([]);
+    const [selectedItem, setSelectedItem] = useState<any | null>(null);
+    const [itemQuantity, setItemQuantity] = useState(1);
+    const [itemNotes, setItemNotes] = useState("");
+
+    const [showCart, setShowCart] = useState(false);
+    const [showWaiterDialog, setShowWaiterDialog] = useState(false);
+    const [showUpsellModal, setShowUpsellModal] = useState(false);
+    const [currentUpsells, setCurrentUpsells] = useState<UpsellItem[]>([]);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+    const [currentOrderId, setCurrentOrderId] = useState<any>(null); // Currently viewed order
+    const [activeOrderIds, setActiveOrderIds] = useState<string[]>([]); // History of active orders
+
+    const [toast, setToast] = useState<{ message: string; type: "success" | "error"; isVisible: boolean }>({
+        message: "",
+        type: "success",
+        isVisible: false,
+    });
+
+    const categoryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+    // Queries & Mutations
+    const menu = useQuery(api.restaurants.getMenu, { restaurantSlug: slug }) as any;
+    const trackedOrder = useQuery(api.orders.getOrder, currentOrderId ? { orderId: currentOrderId } : "skip");
+    const activeOrders = useQuery(api.orders.getOrdersByIds, activeOrderIds.length > 0 ? { orderIds: activeOrderIds as any } : "skip");
+    const createOrder = useMutation(api.orders.createOrder);
+    const callWaiter = useMutation(api.waiterCalls.callWaiter);
+
+    // Effects
+    useEffect(() => {
+        if (!tableParam) {
+            setShowTableSelector(true);
+        } else {
+            setTableNumber(tableParam);
+        }
+    }, [tableParam]);
+
+    // Load active orders from local storage on mount
+    useEffect(() => {
+        const saved = localStorage.getItem("activeOrderIds");
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) {
+                    setActiveOrderIds(parsed);
+                    // If we have active orders, show the latest one by default if it's the first load
+                    // But we'll leave currentOrderId null so the user sees the menu first, unless they just placed it
+                }
+            } catch (e) {
+
+            }
+        }
+    }, []);
+
+    // Save active orders to local storage
+    useEffect(() => {
+        localStorage.setItem("activeOrderIds", JSON.stringify(activeOrderIds));
+    }, [activeOrderIds]);
+
+    // Watch for archived or cancelled orders and clean up
+    useEffect(() => {
+        if (activeOrders) {
+            const validOrderIds = activeOrders.map((o: any) => o._id);
+            // If the current order is no longer in the valid list (archived), reset view
+            if (currentOrderId && !validOrderIds.includes(currentOrderId)) {
+                setCurrentOrderId(null);
+                showToast(t("table_cleared"), "success");
+            }
+            // Sync local state with valid orders from backend
+            if (validOrderIds.length !== activeOrderIds.length) {
+                setActiveOrderIds(validOrderIds);
+            }
+        }
+    }, [activeOrders, currentOrderId, activeOrderIds]);
+
+    // No auto-clear for cancelled orders - let user dismiss manually via banner
+
+    // Derived State
+    const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+    const filteredCategories = menu?.categories.map((category: any) => ({
+        ...category,
+        items: category.items.filter((item: any) =>
+            item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.tags?.some((tag: string) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+        )
+    })).filter((cat: any) => cat.items.length > 0);
+
+    // Handlers
+    const showToast = (message: string, type: "success" | "error" = "success") => {
+        setToast({ message, type, isVisible: true });
+    };
+
+    const handleTableSubmit = () => {
+        if (tableInput.trim()) {
+            setTableNumber(tableInput.trim());
+            setShowTableSelector(false);
+            router.push(`/${slug}?table=${tableInput.trim()}`);
+        }
+    };
+
+    const handleInitialAddToCart = () => {
+        if (!selectedItem) return;
+
+        // Check for related modifiers
+        const relatedModifierIds = selectedItem.relatedModifiers || [];
+
+        if (relatedModifierIds.length > 0 && menu.modifiers) {
+            // Map IDs to modifier objects
+            const specificModifiers = menu.modifiers
+                .filter((mod: any) => relatedModifierIds.includes(mod._id))
+                .map((mod: any) => ({
+                    id: mod._id,
+                    name: mod.name,
+                    price: mod.price,
+                    description: mod.name_ar && language === 'ar' ? mod.name_ar : undefined
+                }));
+
+            if (specificModifiers.length > 0) {
+                setCurrentUpsells(specificModifiers);
+                setShowUpsellModal(true);
+                return;
+            }
+        }
+
+        // No modifiers, add directly
+        addToCart();
+    };
+
+    const addToCart = (upsells: UpsellItem[] = []) => {
+        if (!selectedItem) return;
+
+        const newItem: CartItem = {
+            menuItemId: selectedItem._id,
+            name: selectedItem.name,
+            price: selectedItem.price,
+            quantity: itemQuantity,
+            notes: itemNotes,
+            imageUrl: selectedItem.imageUrl,
+        };
+
+        const upsellItems: CartItem[] = upsells.map(upsell => ({
+            menuItemId: upsell.id,
+            name: upsell.name,
+            price: upsell.price,
+            quantity: 1,
+            isUpsell: true
+        }));
+
+        setCart(prev => [...prev, newItem, ...upsellItems]);
+        setSelectedItem(null);
+        setItemQuantity(1);
+        setItemNotes("");
+
+        showToast(t("added_to_cart"), "success");
+    };
+
+    const handleConfirmUpsell = (upsellIds: string[]) => {
+        if (!selectedItem) {
+            setShowUpsellModal(false);
+            return;
+        }
+
+        const selectedUpsells = currentUpsells.filter(u => upsellIds.includes(u.id));
+        addToCart(selectedUpsells);
+        setShowUpsellModal(false);
+    };
+
+    const handleRemoveFromCart = (index: number) => {
+        setCart(cart.filter((_, i) => i !== index));
+    };
+
+    const handleUpdateCartQuantity = (index: number, delta: number) => {
+        const newCart = [...cart];
+        newCart[index].quantity += delta;
+        if (newCart[index].quantity <= 0) {
+            setCart(cart.filter((_, i) => i !== index));
+        } else {
+            setCart(newCart);
+        }
+    };
+
+    const handlePlaceOrder = async () => {
+        if (!tableNumber || cart.length === 0 || !menu?.restaurant?._id) return;
+
+        try {
+            const items = cart.map((item) => ({
+                menuItemId: item.menuItemId as any,
+                quantity: item.quantity,
+                notes: item.notes,
+            }));
+
+            const orderId = await createOrder({
+                restaurantId: menu.restaurant._id,
+                tableNumber: tableNumber,
+                items
+            });
+
+            setCart([]);
+            setShowCart(false);
+            setCurrentOrderId(orderId); // Start tracking
+            setActiveOrderIds(prev => [...prev, orderId]); // Add to history
+        } catch (error) {
+
+            showToast(t("failed_place_order"), "error");
+        }
+    };
+
+    const handleCallWaiter = async (type: "bill" | "help") => {
+        if (!menu?.restaurant?._id || !tableNumber) return;
+
+        try {
+            await callWaiter({
+                restaurantId: menu.restaurant._id,
+                tableNumber: tableNumber,
+                type
+            });
+            setShowWaiterDialog(false);
+            showToast(t("waiter_called", { type }), "success");
+        } catch (error) {
+
+            showToast(t("failed_call_waiter"), "error");
+        }
+    };
+
+    const scrollToCategory = (categoryId: string) => {
+        setActiveCategoryId(categoryId);
+        const element = categoryRefs.current[categoryId];
+        if (element) {
+            const offset = 180;
+            const elementPosition = element.getBoundingClientRect().top;
+            const offsetPosition = elementPosition + window.pageYOffset - offset;
+            window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+        }
+    };
+
+    if (menu === undefined) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#f5f3f0]">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
+                    <p className="text-[#1a1a2e] font-serif italic">{t("preparing_experience")}</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (currentOrderId && trackedOrder) {
+        const steps = [
+            { status: "pending", label: t("order_sent"), icon: Clock },
+            { status: "preparing", label: t("chef_is_cooking"), icon: ChefHat },
+            { status: "ready", label: t("ready_to_serve"), icon: Bell },
+            { status: "served", label: t("bon_appetit"), icon: Utensils },
+        ];
+
+        const currentStepIndex = steps.findIndex(s => s.status === trackedOrder.status);
+        // If status is 'paid', show served state or a thank you
+        const activeIndex = trackedOrder.status === 'paid' ? 3 : (currentStepIndex === -1 ? 0 : currentStepIndex);
+
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-[#1a1a2e] p-6 text-center relative overflow-hidden">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#D4AF37_0%,_transparent_70%)] opacity-10" />
+
+                <div className="w-full max-w-md space-y-8 relative z-10">
+                    {/* Status Icon */}
+                    <div className="flex justify-center">
+                        <div className="w-32 h-32 bg-[#D4AF37]/10 rounded-full flex items-center justify-center border-2 border-[#D4AF37] animate-pulse">
+                            {(() => {
+                                const Icon = steps[activeIndex].icon;
+                                return <Icon className="w-16 h-16 text-[#D4AF37]" />;
+                            })()}
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <h1 className="text-3xl font-serif text-[#D4AF37] font-bold">
+                            {steps[activeIndex].label}
+                        </h1>
+                        <p className="text-[#f5f3f0]/80 font-light">
+                            {t("table_no")} {tableNumber} • Order #{currentOrderId.slice(-4)}
+                        </p>
+                    </div>
+
+                    {/* Stepper */}
+                    <div className="relative flex justify-between items-center px-4 mt-12">
+                        {/* Connecting Line */}
+                        <div className="absolute left-4 right-4 top-1/2 h-0.5 bg-gray-700 -z-10" />
+                        <div
+                            className="absolute left-4 top-1/2 h-0.5 bg-[#D4AF37] -z-10 transition-all duration-500"
+                            style={{ width: `${(activeIndex / (steps.length - 1)) * 100}%` }}
+                        />
+
+                        {steps.map((step, idx) => {
+                            const isCompleted = idx <= activeIndex;
+                            const isCurrent = idx === activeIndex;
+                            const Icon = step.icon;
+
+                            return (
+                                <div key={step.status} className="flex flex-col items-center gap-2 bg-[#1a1a2e] px-2">
+                                    <div className={`
+                                        w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300
+                                        ${isCompleted ? "bg-[#D4AF37] border-[#D4AF37] text-[#1a1a2e]" : "bg-[#1a1a2e] border-gray-600 text-gray-600"}
+                                        ${isCurrent ? "scale-125 shadow-[0_0_15px_rgba(212,175,55,0.5)]" : ""}
+                                    `}>
+                                        <Icon className="w-5 h-5" />
+                                    </div>
+                                    <span className={`text-[10px] font-bold uppercase tracking-wider ${isCompleted ? "text-[#D4AF37]" : "text-gray-600"}`}>
+                                        {step.status}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Order Details Preview */}
+                    <div className="bg-white/5 rounded-xl p-4 text-left border border-white/10 mt-8">
+                        <h3 className="text-[#D4AF37] text-sm font-bold uppercase tracking-wider mb-3 border-b border-white/10 pb-2">{t("your_order")}</h3>
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                            {trackedOrder.items.map((item: any, idx: number) => (
+                                <div key={idx} className="flex flex-col text-sm text-[#f5f3f0] mb-2">
+                                    <div className="flex justify-between">
+                                        <span>{item.quantity}x {item.menuItem?.name}</span>
+                                        <span className="text-white/60">{"DA"} {(item.menuItem?.price * item.quantity).toFixed(2)}</span>
+                                    </div>
+                                    {item.notes && (
+                                        <span className="text-xs text-[#D4AF37] italic pl-4">Note: {item.notes}</span>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        <div className="mt-3 pt-2 border-t border-white/10 flex justify-between text-[#D4AF37] font-bold">
+                            <span>{t("total_amount")}</span>
+                            <span>{"DA"} {trackedOrder.totalAmount.toFixed(2)}</span>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                        <Button
+                            onClick={() => setShowWaiterDialog(true)}
+                            variant="ghost"
+                            className="flex-1 border border-[#D4AF37]/30 text-[#D4AF37] hover:bg-[#D4AF37]/10"
+                        >
+                            <BellRing className="w-4 h-4 mr-2" />
+                            {t("call_waiter")}
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                setCurrentOrderId(null);
+                            }}
+                            variant="outline"
+                            className="flex-1 border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37] hover:text-[#1a1a2e]"
+                        >
+                            {t("start_new_order")}
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Re-use Waiter Modal inside Success View */}
+                <Modal
+                    isOpen={showWaiterDialog}
+                    onClose={() => setShowWaiterDialog(false)}
+                    title={t("concierge_service")}
+                >
+                    <div className="grid grid-cols-1 gap-4">
+                        <button
+                            onClick={() => handleCallWaiter("bill")}
+                            className="flex items-center gap-4 p-5 rounded-2xl bg-[#f5f3f0] border border-transparent hover:border-[#D4AF37] hover:bg-white hover:shadow-lg transition-all group"
+                        >
+                            <span className="text-3xl group-hover:scale-110 transition-transform">💳</span>
+                            <div className={`text-left ${direction === 'rtl' ? 'text-right' : ''}`}>
+                                <div className="font-serif font-bold text-[#1a1a2e]">{t("request_bill")}</div>
+                                <div className="text-xs text-gray-500">{t("ready_to_settle")}</div>
+                            </div>
+                        </button>
+                        <button
+                            onClick={() => handleCallWaiter("help")}
+                            className="flex items-center gap-4 p-5 rounded-2xl bg-[#f5f3f0] border border-transparent hover:border-[#D4AF37] hover:bg-white hover:shadow-lg transition-all group"
+                        >
+                            <span className="text-3xl group-hover:scale-110 transition-transform">🛎️</span>
+                            <div className={`text-left ${direction === 'rtl' ? 'text-right' : ''}`}>
+                                <div className="font-serif font-bold text-[#1a1a2e]">{t("call_server")}</div>
+                                <div className="text-xs text-gray-500">{t("general_assistance")}</div>
+                            </div>
+                        </button>
+                    </div>
+                </Modal>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-[#f5f3f0] pb-24 font-sans">
+            {/* 1. Fixed Header */}
+            <header className="fixed top-0 left-0 right-0 bg-[#1a1a2e] shadow-lg z-40 h-[70px]">
+                <div className="max-w-2xl mx-auto px-4 h-full flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        {menu.restaurant.logoUrl ? (
+                            <div className="w-10 h-10 relative rounded-full overflow-hidden border border-[#D4AF37]/50">
+                                <Image src={menu.restaurant.logoUrl} alt="Logo" fill className="object-cover" />
+                            </div>
+                        ) : (
+                            <div className="w-10 h-10 rounded-full bg-[#D4AF37] flex items-center justify-center text-[#1a1a2e] font-serif font-bold text-lg">
+                                {menu.restaurant.name[0]}
+                            </div>
+                        )}
+                        <div>
+                            <h1 className="text-lg font-serif text-[#f5f3f0] leading-tight tracking-wide">{menu.restaurant.name}</h1>
+                            {tableNumber && <p className="text-xs text-[#D4AF37]">{t("table_no")} {tableNumber}</p>}
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <LanguageSwitcher />
+                        <Button
+                            variant="ghost"
+                            onClick={() => setShowWaiterDialog(true)}
+                            className="text-[#D4AF37] hover:bg-[#D4AF37]/20 bg-amber-500/10 flex items-center gap-2 px-3"
+                        >
+                            <BellRing className="w-4 h-4" />
+                            <span className="text-sm font-medium hidden sm:inline">{t("call_waiter")}</span>
+                        </Button>
+                    </div>
+                </div>
+            </header>
+
+            {/* Cancelled Order Warning Banner */}
+            {trackedOrder && trackedOrder.status === "cancelled" && (
+                <div className="fixed top-[70px] left-0 right-0 bg-red-50 border-b-2 border-red-200 z-40 shadow-lg">
+                    <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 flex-1">
+                            <span className="text-2xl">⚠️</span>
+                            <div>
+                                <p className="text-sm font-bold text-red-800">
+                                    {t("order_cancelled_title", { id: trackedOrder._id.slice(-4) })}
+                                </p>
+                                <p className="text-xs text-red-600 mt-0.5">
+                                    {t("order_cancelled_msg")}
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => {
+                                setCurrentOrderId(null);
+                                setActiveOrderIds(prev => prev.filter(id => id !== trackedOrder._id));
+                            }}
+                            className="text-red-400 hover:text-red-600 hover:bg-red-100 p-2 rounded-full transition-colors flex-shrink-0"
+                            aria-label="Dismiss"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* 2. Sticky Search & Filter */}
+            <div className="sticky top-[70px] z-30 bg-[#f5f3f0]/95 backdrop-blur-md border-b border-[#D4AF37]/10 py-4 shadow-sm">
+                <div className="max-w-2xl mx-auto px-4 space-y-4">
+                    <SearchBar
+                        value={searchQuery}
+                        onChange={setSearchQuery}
+                        placeholder={t("search_placeholder")}
+                    />
+
+                    <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
+                        <div className="flex gap-3">
+                            {menu.categories.map((category: any) => (
+                                <button
+                                    key={category._id}
+                                    onClick={() => scrollToCategory(category._id)}
+                                    className={`
+                                        px-5 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all border
+                                        ${activeCategoryId === category._id
+                                            ? "bg-[#1a1a2e] text-[#D4AF37] border-[#1a1a2e] shadow-lg shadow-[#1a1a2e]/20"
+                                            : "bg-white text-[#1a1a2e]/70 border-[#D4AF37]/20 hover:border-[#D4AF37]"
+                                        }
+                                    `}
+                                >
+                                    {category.name}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* 3. Menu Items Grid */}
+            <main className="max-w-2xl mx-auto px-4 py-8 space-y-10 mt-[140px]">
+                {filteredCategories?.map((category: any) => (
+                    <div
+                        key={category._id}
+                        ref={(el) => { categoryRefs.current[category._id] = el; }}
+                        className="space-y-5"
+                    >
+                        <h2 className="text-2xl font-serif text-[#1a1a2e] flex items-center gap-3 relative">
+                            <span className="relative z-10 bg-[#f5f3f0] pr-4">{category.name}</span>
+                            <div className="absolute left-0 right-0 top-1/2 h-px bg-[#D4AF37]/20 -z-0" />
+                        </h2>
+
+                        <div className="grid gap-6 sm:grid-cols-2">
+                            {category.items.map((item: any) => (
+                                <div
+                                    key={item._id}
+                                    onClick={() => {
+                                        if (!item.isAvailable) return;
+                                        setSelectedItem(item);
+                                        setItemQuantity(1);
+                                        setItemNotes("");
+                                    }}
+                                    className={`group bg-white rounded-2xl p-4 shadow-sm border border-[#D4AF37]/10 transition-all duration-300 relative overflow-hidden ${item.isAvailable ? 'hover:shadow-xl hover:shadow-[#D4AF37]/10 cursor-pointer' : 'opacity-80 cursor-not-allowed'}`}
+                                >
+                                    <div className="flex gap-4">
+                                        {item.imageUrl && (
+                                            <div className="w-28 h-28 relative rounded-xl overflow-hidden shadow-inner flex-shrink-0">
+                                                <Image src={item.imageUrl} alt={item.name} fill className={`object-cover transition-transform duration-500 ${item.isAvailable ? 'group-hover:scale-110' : 'grayscale'}`} />
+                                                {!item.isAvailable && (
+                                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                                        <span className="text-white font-bold text-xs bg-red-600 px-2 py-1 rounded transform -rotate-12">{t("sold_out")}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                        <div className="flex-1 flex flex-col justify-between min-w-0 py-1">
+                                            <div>
+                                                <h3 className="font-serif font-bold text-[#1a1a2e] text-lg leading-tight">{item.name}</h3>
+                                                <p className="text-xs text-gray-500 line-clamp-2 mt-2 font-light leading-relaxed">
+                                                    {(language === 'ar' && item.description_ar) ? item.description_ar : item.description}
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center justify-between mt-3">
+                                                <span className="font-serif font-bold text-[#D4AF37] text-lg">
+                                                    {"DA"} {item.price.toFixed(2)}
+                                                </span>
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform shadow-lg shadow-[#1a1a2e]/20 ${item.isAvailable ? 'bg-[#1a1a2e] text-[#D4AF37] group-hover:scale-110' : 'bg-gray-200 text-gray-400'}`}>
+                                                    <Plus className="w-4 h-4" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Badges */}
+                                    <div className="absolute top-3 left-3 flex gap-1">
+                                        {item.tags?.includes("Spicy") && (
+                                            <span className="bg-red-50 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-100">{t("spicy")}</span>
+                                        )}
+                                        {Math.random() > 0.7 && (
+                                            <span className="bg-[#D4AF37] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">{t("chefs_special")}</span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </main>
+
+            {/* 4. Fixed Bottom Cart Bar */}
+            {cart.length > 0 && (
+                <div className="fixed bottom-6 left-4 right-4 z-30 max-w-2xl mx-auto">
+                    <button
+                        onClick={() => setShowCart(true)}
+                        className="w-full bg-gradient-to-r from-[#D4AF37] to-[#c4a027] text-[#1a1a2e] p-4 rounded-2xl shadow-xl shadow-[#D4AF37]/30 flex items-center justify-between hover:scale-[1.02] transition-all duration-300"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="bg-[#1a1a2e] text-[#D4AF37] px-3 py-1 rounded-lg font-bold text-sm shadow-inner">
+                                {cartItemCount} {t("items")}
+                            </div>
+                            <span className="font-serif font-bold">{t("view_order")}</span>
+                        </div>
+                        <span className="font-serif font-bold text-xl">
+                            {"DA"} {cartTotal.toFixed(2)}
+                        </span>
+                    </button>
+                </div>
+            )}
+
+            {/* Floating Status Pill (only if cart is empty and we have active orders) */}
+            {cart.length === 0 && activeOrders && activeOrders.length > 0 && (
+                <div className="fixed bottom-6 left-4 right-4 z-30 max-w-2xl mx-auto flex justify-end">
+                    <button
+                        onClick={() => setCurrentOrderId(activeOrders[activeOrders.length - 1]?._id)}
+                        className="bg-[#1a1a2e] text-[#D4AF37] px-4 py-3 rounded-full shadow-xl border border-[#D4AF37]/30 flex items-center gap-3 hover:scale-105 transition-transform animate-bounce-slow"
+                    >
+                        <Clock className="w-5 h-5" />
+                        <div className="flex flex-col items-start">
+                            <span className="text-[10px] text-gray-400 uppercase tracking-wider leading-none mb-0.5">{t("active_order")}</span>
+                            <span className="font-bold text-sm leading-none">
+                                {activeOrders[activeOrders.length - 1]?.status?.toUpperCase()}
+                            </span>
+                        </div>
+                    </button>
+                </div>
+            )}
+
+            {/* 5. Cart Drawer */}
+            <Drawer
+                isOpen={showCart}
+                onClose={() => setShowCart(false)}
+                title={`${t("your_order")} (${cartItemCount} ${t("items")})`}
+            >
+                <div className="space-y-6 pb-40">
+                    {cart.map((item, index) => (
+                        <div key={index} className={`flex gap-4 ${item.isUpsell ? "pl-8 border-l-2 border-[#D4AF37]/20" : ""}`}>
+                            {!item.isUpsell && item.imageUrl && (
+                                <div className="w-16 h-16 relative rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border border-[#D4AF37]/20">
+                                    <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                                </div>
+                            )}
+                            <div className="flex-1">
+                                <div className="flex justify-between items-start">
+                                    <h3 className="font-serif font-bold text-[#1a1a2e] text-sm">{item.name}</h3>
+                                    <span className="font-bold text-[#1a1a2e] text-sm">
+                                        {"DA"} {(item.price * item.quantity).toFixed(2)}
+                                    </span>
+                                </div>
+                                {item.notes && <p className="text-xs text-gray-500 mt-1 italic">"{item.notes}"</p>}
+
+                                <div className="flex items-center justify-between mt-3">
+                                    <button
+                                        onClick={() => handleRemoveFromCart(index)}
+                                        className="text-xs text-red-500 font-medium hover:text-red-600 transition-colors"
+                                    >
+                                        {t("remove")}
+                                    </button>
+                                    <div className="flex items-center gap-3 bg-white p-1 rounded-xl w-fit shadow-sm border border-gray-100">
+                                        <button
+                                            onClick={() => handleUpdateCartQuantity(index, -1)}
+                                            className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-700"
+                                        >
+                                            <Minus className="w-3.5 h-3.5" />
+                                        </button>
+                                        <span className="text-base font-semibold w-8 text-center text-[#1a1a2e]">{item.quantity}</span>
+                                        <button
+                                            onClick={() => handleUpdateCartQuantity(index, 1)}
+                                            className="w-8 h-8 rounded-lg bg-[#D4AF37] flex items-center justify-center hover:bg-[#c4a027] transition-colors text-white shadow-sm"
+                                        >
+                                            <Plus className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {cart.length > 0 && (
+                    <div className="absolute bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-10">
+                        <div className="flex justify-between items-center mb-6">
+                            <span className="text-gray-500 font-serif">{t("total_amount")}</span>
+                            <span className="text-3xl font-serif font-bold text-[#1a1a2e]">
+                                {"DA"} {cartTotal.toFixed(2)}
+                            </span>
+                        </div>
+                        <Button
+                            onClick={handlePlaceOrder}
+                            disabled={!tableNumber}
+                            className="w-full h-14 text-lg font-serif tracking-wide shadow-xl shadow-[#D4AF37]/20"
+                        >
+                            {tableNumber ? t("confirm_order") : t("select_table_first")}
+                        </Button>
+                    </div>
+                )}
+            </Drawer>
+
+            {/* 6. Waiter Modal */}
+            <Modal
+                isOpen={showWaiterDialog}
+                onClose={() => setShowWaiterDialog(false)}
+                title={t("concierge_service")}
+            >
+                <div className="grid grid-cols-1 gap-4">
+                    <button
+                        onClick={() => handleCallWaiter("bill")}
+                        className="flex items-center gap-4 p-5 rounded-2xl bg-[#f5f3f0] border border-transparent hover:border-[#D4AF37] hover:bg-white hover:shadow-lg transition-all group"
+                    >
+                        <span className="text-3xl group-hover:scale-110 transition-transform">💳</span>
+                        <div className={`text-left ${direction === 'rtl' ? 'text-right' : ''}`}>
+                            <div className="font-serif font-bold text-[#1a1a2e]">{t("request_bill")}</div>
+                            <div className="text-xs text-gray-500">{t("ready_to_settle")}</div>
+                        </div>
+                    </button>
+                    <button
+                        onClick={() => handleCallWaiter("help")}
+                        className="flex items-center gap-4 p-5 rounded-2xl bg-[#f5f3f0] border border-transparent hover:border-[#D4AF37] hover:bg-white hover:shadow-lg transition-all group"
+                    >
+                        <span className="text-3xl group-hover:scale-110 transition-transform">🛎️</span>
+                        <div className={`text-left ${direction === 'rtl' ? 'text-right' : ''}`}>
+                            <div className="font-serif font-bold text-[#1a1a2e]">{t("call_server")}</div>
+                            <div className="text-xs text-gray-500">{t("general_assistance")}</div>
+                        </div>
+                    </button>
+                </div>
+            </Modal>
+
+            {/* Table Selector Modal */}
+            <Modal
+                isOpen={showTableSelector}
+                onClose={() => { }}
+                title={t("welcome")}
+            >
+                <div className="space-y-6 text-center">
+                    <div className="w-16 h-16 bg-[#D4AF37]/10 rounded-full flex items-center justify-center mx-auto mb-2">
+                        <Star className="w-8 h-8 text-[#D4AF37]" />
+                    </div>
+                    <p className="text-gray-600 font-serif">{t("enter_table_number")}</p>
+                    <Input
+                        type="text"
+                        value={tableInput}
+                        onChange={(e) => setTableInput(e.target.value)}
+                        placeholder={t("table_no")}
+                        className="text-center text-lg font-serif tracking-widest border-[#D4AF37]/30 focus-visible:ring-[#D4AF37]"
+                        autoFocus
+                    />
+                    <Button
+                        onClick={handleTableSubmit}
+                        disabled={!tableInput.trim()}
+                        className="w-full"
+                    >
+                        {t("begin_dining")}
+                    </Button>
+                </div>
+            </Modal>
+
+            {/* Item Detail Modal */}
+            <Drawer
+                isOpen={!!selectedItem}
+                onClose={() => setSelectedItem(null)}
+                title={t("item_details")}
+            >
+                {selectedItem && (
+                    <div className="space-y-8 pb-32">
+                        {selectedItem.imageUrl && (
+                            <div className="w-full h-64 relative rounded-2xl overflow-hidden shadow-2xl">
+                                <Image src={selectedItem.imageUrl} alt={selectedItem.name} fill className="object-cover" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                                <div className="absolute bottom-4 left-4 text-white">
+                                    <h2 className="text-3xl font-serif font-bold">{selectedItem.name}</h2>
+                                </div>
+                            </div>
+                        )}
+
+                        {!selectedItem.imageUrl && (
+                            <h2 className="text-3xl font-serif font-bold text-[#1a1a2e]">{selectedItem.name}</h2>
+                        )}
+
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-6">
+                            <span className="text-3xl font-serif font-bold text-[#D4AF37]">
+                                {selectedItem.price.toFixed(2)} DA
+                            </span>
+                            <div className="flex items-center gap-4 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
+                                <button
+                                    onClick={() => setItemQuantity(Math.max(1, itemQuantity - 1))}
+                                    className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-700"
+                                >
+                                    <Minus className="w-4 h-4" />
+                                </button>
+                                <span className="text-xl font-bold w-8 text-center text-[#1a1a2e]">{itemQuantity}</span>
+                                <button
+                                    onClick={() => setItemQuantity(itemQuantity + 1)}
+                                    className="w-10 h-10 rounded-xl bg-[#D4AF37] flex items-center justify-center hover:bg-[#c4a027] transition-colors text-white shadow-sm"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {(selectedItem.description || (language === 'ar' && selectedItem.description_ar)) && (
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-[#1a1a2e] uppercase tracking-wider">{t("description")}</label>
+                                <p className="text-gray-700 leading-relaxed">
+                                    {(language === 'ar' && selectedItem.description_ar) ? selectedItem.description_ar : selectedItem.description}
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="space-y-3">
+                            <label className="text-sm font-bold text-[#1a1a2e] uppercase tracking-wider">{t("special_instructions")}</label>
+                            <textarea
+                                value={itemNotes}
+                                onChange={(e) => setItemNotes(e.target.value)}
+                                placeholder={t("allergies_placeholder")}
+                                className="w-full p-4 rounded-xl bg-gray-50 border-gray-200 focus:border-[#D4AF37] focus:ring-[#D4AF37] min-h-[100px] resize-none text-[#1a1a2e]"
+                            />
+                        </div>
+
+                        <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-10">
+                            <Button
+                                onClick={handleInitialAddToCart}
+                                className="w-full h-14 text-lg font-serif tracking-wide shadow-xl shadow-[#D4AF37]/20"
+                            >
+                                {t("add_to_order")} • {(selectedItem.price * itemQuantity).toFixed(2)} DA
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </Drawer>
+
+            {/* Upsell Modal */}
+            <UpsellModal
+                isOpen={showUpsellModal}
+                onClose={() => setShowUpsellModal(false)}
+                upsellItems={currentUpsells}
+                onConfirm={handleConfirmUpsell}
+            />
+        </div>
+    );
+}
