@@ -17,6 +17,7 @@ const applicationTables = {
     .index("by_owner", ["ownerId"]),
 
   tables: defineTable({
+    // Table status including reserved
     restaurantId: v.id("restaurants"),
     number: v.string(),
     qrCodeUrl: v.optional(v.string()),

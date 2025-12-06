@@ -54,6 +54,7 @@ export const createTable = mutation({
   },
 });
 
+// Update table status - supports reserved status
 export const updateTableStatus = mutation({
   args: {
     tableId: v.id("tables"),
@@ -84,5 +85,33 @@ export const deleteTable = mutation({
   args: { tableId: v.id("tables") },
   handler: async (ctx, args) => {
     await ctx.db.delete(args.tableId);
+  },
+});
+
+export const resetAllTables = mutation({
+  args: { restaurantId: v.id("restaurants") },
+  handler: async (ctx, args) => {
+    const tables = await ctx.db
+      .query("tables")
+      .withIndex("by_restaurant", (q) => q.eq("restaurantId", args.restaurantId))
+      .collect();
+
+    for (const table of tables) {
+      await ctx.db.patch(table._id, { status: "free" });
+
+      // Archive all active orders for this table
+      const activeOrders = await ctx.db
+        .query("orders")
+        .withIndex("by_table", (q) => q.eq("tableId", table._id))
+        .collect();
+
+      for (const order of activeOrders) {
+        if (!order.isArchived) {
+          await ctx.db.patch(order._id, { isArchived: true });
+        }
+      }
+    }
+
+    return { message: "All tables reset to free", count: tables.length };
   },
 });

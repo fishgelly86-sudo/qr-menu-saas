@@ -39,6 +39,22 @@ export default function CustomerMenuPage() {
     const tableParam = searchParams.get("table");
     const { t, direction, language } = useLanguage();
 
+    const statusTranslations: Record<string, string> = {
+        pending: 'قيد الانتظار',
+        preparing: 'قيد التحضير',
+        ready: 'جاهز',
+        served: 'تم التقديم',
+        paid: 'مدفوع',
+        cancelled: 'ملغى'
+    };
+
+    const getStatusLabel = (status: string) => {
+        if (language === 'ar' && statusTranslations[status.toLowerCase()]) {
+            return statusTranslations[status.toLowerCase()];
+        }
+        return status.toUpperCase();
+    };
+
     // State
     const [tableNumber, setTableNumber] = useState<string | null>(tableParam);
     const [showTableSelector, setShowTableSelector] = useState(false);
@@ -354,7 +370,7 @@ export default function CustomerMenuPage() {
                                         <Icon className="w-5 h-5" />
                                     </div>
                                     <span className={`text-[10px] font-bold uppercase tracking-wider ${isCompleted ? "text-[#D4AF37]" : "text-gray-600"}`}>
-                                        {step.status}
+                                        {getStatusLabel(step.status)}
                                     </span>
                                 </div>
                             );
@@ -632,7 +648,10 @@ export default function CustomerMenuPage() {
                         <div className="flex flex-col items-start">
                             <span className="text-[10px] text-gray-400 uppercase tracking-wider leading-none mb-0.5">{t("active_order")}</span>
                             <span className="font-bold text-sm leading-none">
-                                {activeOrders[activeOrders.length - 1]?.status?.toUpperCase()}
+                                {(() => {
+                                    const lastOrder = activeOrders[activeOrders.length - 1];
+                                    return lastOrder?.status ? getStatusLabel(lastOrder.status) : '';
+                                })()}
                             </span>
                         </div>
                     </button>

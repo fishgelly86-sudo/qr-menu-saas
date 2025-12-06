@@ -3,8 +3,8 @@
 
 import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
-import { DollarSign, ShoppingBag, TrendingUp, Calendar } from "lucide-react";
+import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from "recharts";
+import { DollarSign, ShoppingBag, TrendingUp, Calendar, Star } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/Button";
 
@@ -48,7 +48,7 @@ export default function AnalyticsPage() {
             <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
-                    <p className="text-gray-500">Overview of your restaurant's performance</p>
+                    <p className="text-gray-500">Overview of your restaurant&apos;s performance</p>
                 </div>
                 <div className="flex items-center bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
                     <button
@@ -84,9 +84,6 @@ export default function AnalyticsPage() {
                     <div className="text-3xl font-bold text-gray-900">
                         {restaurant.currency} {stats.totalRevenue.toFixed(2)}
                     </div>
-                    <p className="text-sm text-green-600 mt-2 flex items-center font-medium">
-                        <TrendingUp className="w-4 h-4 mr-1" /> +{stats.trendPercentage}% vs last period
-                    </p>
                 </div>
 
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
@@ -106,56 +103,64 @@ export default function AnalyticsPage() {
 
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Active Tables</h3>
-                        <div className="p-2 bg-purple-100 rounded-lg">
-                            <TrendingUp className="w-5 h-5 text-purple-600" />
+                        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Most Picked Item</h3>
+                        <div className="p-2 bg-emerald-100 rounded-lg">
+                            <Star className="w-5 h-5 text-emerald-600" />
                         </div>
                     </div>
-                    <div className="text-3xl font-bold text-gray-900">
-                        --
-                    </div>
-                    <p className="text-sm text-gray-500 mt-2">
-                        Real-time occupancy
-                    </p>
+                    {stats.mostPickedItem ? (
+                        <div>
+                            <div className="flex items-center gap-4 mb-2">
+                                {stats.mostPickedItem.imageUrl && (
+                                    <img
+                                        src={stats.mostPickedItem.imageUrl}
+                                        alt={stats.mostPickedItem.name}
+                                        className="w-12 h-12 rounded-lg object-cover"
+                                    />
+                                )}
+                                <div>
+                                    <div className="text-lg font-bold text-gray-900">
+                                        {stats.mostPickedItem.name}
+                                    </div>
+                                    <div className="text-sm text-gray-500">
+                                        {stats.mostPickedItem.count} orders
+                                    </div>
+                                </div>
+                            </div>
+                            <p className="text-sm text-emerald-600 font-medium">
+                                {restaurant.currency} {stats.mostPickedItem.revenue.toFixed(2)} revenue
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="text-gray-400 italic">No data yet</div>
+                    )}
                 </div>
             </div>
 
             {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Popular Items */}
+            <div className="grid grid-cols-1">
+                {/* Revenue by Category */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                    <h3 className="text-lg font-bold text-gray-900 mb-6">Top Selling Items</h3>
-                    <div className="h-80">
+                    <h3 className="text-lg font-bold text-gray-900 mb-6 text-center">Revenue by Category</h3>
+                    <div className="h-96">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={stats.popularItems} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                                <XAxis type="number" />
-                                <YAxis dataKey="name" type="category" width={100} />
-                                <Tooltip />
-                                <Bar dataKey="count" fill="#4f46e5" radius={[0, 4, 4, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-
-                {/* Orders Trend */}
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                    <h3 className="text-lg font-bold text-gray-900 mb-6">Orders Trend</h3>
-                    <div className="h-80">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={stats.ordersTrend}>
-                                <defs>
-                                    <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                <XAxis dataKey="name" tick={{ fontSize: 12 }} tickFormatter={(val) => val.length > 5 ? val.slice(5) : val} />
-                                <YAxis />
-                                <Tooltip />
-                                <Area type="monotone" dataKey="orders" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorOrders)" />
-                            </AreaChart>
+                            <PieChart>
+                                <Pie
+                                    data={stats.revenueByCategory}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={80}
+                                    outerRadius={120}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                >
+                                    {stats.revenueByCategory?.map((entry: any, index: number) => (
+                                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                                    ))}
+                                </Pie>
+                                <Tooltip formatter={(value: number) => [`${restaurant.currency} ${value.toFixed(2)}`, 'Revenue']} />
+                                <Legend />
+                            </PieChart>
                         </ResponsiveContainer>
                     </div>
                 </div>

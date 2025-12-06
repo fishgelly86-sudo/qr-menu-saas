@@ -4,7 +4,7 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useState } from "react";
-import { Plus, QrCode, Trash2, Download } from "lucide-react";
+import { Plus, QrCode, Trash2, Download, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
@@ -22,6 +22,8 @@ export default function TablesPage() {
 
     const createTable = useMutation(api.tables.createTable);
     const deleteTable = useMutation(api.tables.deleteTable);
+    const updateTableStatus = useMutation(api.tables.updateTableStatus);
+    const resetAllTables = useMutation(api.tables.resetAllTables);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [newTableNumber, setNewTableNumber] = useState("");
@@ -71,6 +73,21 @@ export default function TablesPage() {
         }
     };
 
+    const handleResetAllTables = async () => {
+        if (confirm("Are you sure you want to reset all tables to FREE? This will archive all active orders.")) {
+            const result = await resetAllTables({ restaurantId: restaurant._id });
+            showToast(`${result.count} tables reset to free`, "success");
+        }
+    };
+
+    const handleStatusChange = async (tableId: string, newStatus: string) => {
+        await updateTableStatus({
+            tableId: tableId as any,
+            status: newStatus as any
+        });
+        showToast("Table status updated", "success");
+    };
+
     const handleShowQR = (table: any) => {
         setSelectedTable(table);
         setQrModalOpen(true);
@@ -96,25 +113,48 @@ export default function TablesPage() {
                     <h1 className="text-3xl font-bold text-gray-900">Tables & QR Codes</h1>
                     <p className="text-gray-500">Manage your restaurant layout</p>
                 </div>
-                <Button onClick={() => setIsModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                    <Plus className="w-4 h-4 mr-2" /> Add Table
-                </Button>
+                <div className="flex gap-3">
+                    <Button
+                        onClick={handleResetAllTables}
+                        variant="outline"
+                        className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                    >
+                        <RotateCcw className="w-4 h-4 mr-2" /> Reset All Tables
+                    </Button>
+                    <Button onClick={() => setIsModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                        <Plus className="w-4 h-4 mr-2" /> Add Table
+                    </Button>
+                </div>
             </header>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {sortedTables.map((table: any) => (
                     <div key={table._id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col items-center relative group">
                         <div className={`absolute top-4 right-4 w-3 h-3 rounded-full ${table.status === 'free' ? 'bg-green-500' :
-                            table.status === 'occupied' ? 'bg-red-500' :
-                                table.status === 'dirty' ? 'bg-yellow-500' : 'bg-blue-500'
+                                table.status === 'occupied' ? 'bg-red-500' :
+                                    table.status === 'dirty' ? 'bg-yellow-500' : 'bg-blue-500'
                             }`} title={table.status} />
 
                         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-2xl font-bold text-gray-700">
                             {table.number}
                         </div>
 
-                        <div className="text-center mb-4">
-                            <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">{table.status}</span>
+                        <div className="w-full mb-4">
+                            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2 text-center">Status</label>
+                            <select
+                                value={table.status}
+                                onChange={(e) => handleStatusChange(table._id, e.target.value)}
+                                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${table.status === 'free' ? 'border-green-300 bg-green-50 text-green-700' :
+                                        table.status === 'occupied' ? 'border-red-300 bg-red-50 text-red-700' :
+                                            table.status === 'dirty' ? 'border-yellow-300 bg-yellow-50 text-yellow-700' :
+                                                'border-blue-300 bg-blue-50 text-blue-700'
+                                    }`}
+                            >
+                                <option value="free">Free</option>
+                                <option value="occupied">Occupied</option>
+                                <option value="dirty">Dirty</option>
+                                <option value="payment_pending">Payment Pending</option>
+                            </select>
                         </div>
 
                         <div className="flex gap-2 w-full">

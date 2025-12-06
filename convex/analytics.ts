@@ -42,51 +42,85 @@ export const getDashboardStats = query({
         const validOrders = filteredOrders.filter(o => o.status !== "cancelled");
         const totalOrders = validOrders.length;
 
-        // Calculate popular items
-        const itemCounts: Record<string, number> = {};
-        // Note: In a real app we would query orderItems efficiently. 
-        // For now we'll mock it or use a simplified approach if we can't easily join.
-        // Since we don't want to fetch all orderItems for all orders here (too slow),
-        // we will stick to the mock data for popular items for this iteration 
-        // OR we could fetch for the top 20 recent orders.
-        // Let's keep the mock data for popular items as requested in the "simplified" version, 
-        // but we can make it slightly more dynamic if we had the data.
-        const popularItems = [
-            { name: "Buffalo Wings", count: 120 },
-            { name: "Burger", count: 95 },
-            { name: "Caesar Salad", count: 85 },
-            { name: "Coke", count: 150 },
-            { name: "Fries", count: 110 },
-        ].sort((a, b) => b.count - a.count).slice(0, 5);
+        // Calculate Revenue by Category
+        // 1. Get all order items for paid orders
+        const orderItemsPromises = paidOrders.map(order =>
+            ctx.db.query("orderItems")
+                .withIndex("by_order", q => q.eq("orderId", order._id))
+                .collect()
+        );
+        const allOrderItems = (await Promise.all(orderItemsPromises)).flat();
 
-        // Calculate Orders Trend (Group by Day or Hour)
-        // If range > 2 days, group by day. Else group by hour.
-        const isMultiDay = (endTime - startTime) > (48 * 60 * 60 * 1000);
-        const trendMap: Record<string, number> = {};
+        // 2. Get all menu items and categories to map IDs
+        const menuItems = await ctx.db.query("menuItems")
+            .withIndex("by_restaurant", q => q.eq("restaurantId", args.restaurantId))
+            .collect();
+        const menuItemMap = new Map(menuItems.map(item => [item._id, item]));
 
-        // Use validOrders for trend (exclude cancelled)
-        validOrders.forEach(order => {
-            const date = new Date(order._creationTime);
-            const key = isMultiDay
-                ? date.toISOString().split('T')[0] // YYYY-MM-DD
-                : `${date.getHours()}:00`;
+        const categories = await ctx.db.query("categories")
+            .withIndex("by_restaurant", q => q.eq("restaurantId", args.restaurantId))
+            .collect();
+        const categoryMap = new Map(categories.map(cat => [cat._id, cat.name]));
 
-            trendMap[key] = (trendMap[key] || 0) + 1;
-        });
+        // 3. Aggregate revenue
+        const categoryRevenue: Record<string, number> = {};
+        let totalCategoryRevenue = 0;
 
-        const ordersTrend = Object.entries(trendMap).map(([key, count]) => ({
-            name: key,
-            orders: count
-        })).sort((a, b) => a.name.localeCompare(b.name));
+        for (const item of allOrderItems) {
+            const menuItem = menuItemMap.get(item.menuItemId as any);
+            if (menuItem) {
+                const catName = categoryMap.get(menuItem.categoryId) || "Uncategorized";
+                const revenue = menuItem.price * item.quantity;
+                categoryRevenue[catName] = (categoryRevenue[catName] || 0) + revenue;
+                totalCategoryRevenue += revenue;
+            }
+        }
 
-        // Fill in gaps for hours if single day (optional, skipping for simplicity)
+        // 4. Format for chart
+        // Colors from design system (Indigo, Emerald, Amber, Red, Violet, Pink, Cyan, Teal)
+        const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6'];
+
+        const revenueByCategory = Object.entries(categoryRevenue)
+            .map(([name, value], index) => ({
+                name,
+                value,
+                fill: COLORS[index % COLORS.length]
+            }))
+            .sort((a, b) => b.value - a.value);
+
+        // 5. Calculate Most Picked Item
+        const itemStats: Record<string, { count: number; revenue: number; menuItemId: string }> = {};
+
+        for (const item of allOrderItems) {
+            const stats = itemStats[item.menuItemId] || { count: 0, revenue: 0, menuItemId: item.menuItemId };
+            const menuItem = menuItemMap.get(item.menuItemId as any);
+            if (menuItem) {
+                stats.count += item.quantity;
+                stats.revenue += item.quantity * menuItem.price;
+                itemStats[item.menuItemId] = stats;
+            }
+        }
+
+        const mostPicked = Object.values(itemStats).sort((a, b) => b.count - a.count)[0];
+        let mostPickedItem = null;
+
+        if (mostPicked) {
+            const menuItem = menuItemMap.get(mostPicked.menuItemId as any);
+            if (menuItem) {
+                mostPickedItem = {
+                    name: menuItem.name,
+                    imageUrl: menuItem.imageUrl,
+                    count: mostPicked.count,
+                    revenue: mostPicked.revenue
+                };
+            }
+        }
 
         return {
             totalRevenue,
             totalOrders,
-            popularItems,
-            ordersTrend,
-            trendPercentage: 12, // Mocked as requested
+            revenueByCategory,
+            mostPickedItem,
         };
     },
 });

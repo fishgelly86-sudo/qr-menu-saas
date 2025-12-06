@@ -23,6 +23,7 @@ import type * as restaurants from "../restaurants.js";
 import type * as router from "../router.js";
 import type * as seedData from "../seedData.js";
 import type * as tables from "../tables.js";
+import type * as updateCurrency from "../updateCurrency.js";
 import type * as waiterCalls from "../waiterCalls.js";
 
 import type {
@@ -47,6 +48,7 @@ declare const fullApi: ApiFromModules<{
   router: typeof router;
   seedData: typeof seedData;
   tables: typeof tables;
+  updateCurrency: typeof updateCurrency;
   waiterCalls: typeof waiterCalls;
 }>;
 
