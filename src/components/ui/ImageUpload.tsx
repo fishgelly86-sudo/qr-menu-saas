@@ -130,8 +130,9 @@ export function ImageUpload({
                         className="object-cover"
                     />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+
                         <Button
-                            variant="destructive"
+                            variant="danger"
                             size="sm"
                             onClick={handleRemove}
                             className="h-10 w-10 p-2 rounded-full"
