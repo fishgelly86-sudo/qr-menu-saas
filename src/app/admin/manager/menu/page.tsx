@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Edit, Trash2, Eye, EyeOff, Save, X, Image as ImageIcon, ChevronDown } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +11,32 @@ import { Input } from "@/components/ui/Input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/Accordion";
 import { useToast } from "@/components/ui/Toast";
 import { ImageUpload } from "@/components/ui/ImageUpload";
+import { useAction } from "convex/react";
+
+function AdminItemImage({ item }: { item: any }) {
+    const getImageUrl = useAction(api.files.getImageUrl);
+    const [url, setUrl] = useState<string | null>(item.imageUrl || null);
+
+    useEffect(() => {
+        if (item.imageStorageId) {
+            getImageUrl({ storageId: item.imageStorageId })
+                .then(u => u && setUrl(u))
+                .catch(e => console.error(e));
+        } else {
+            setUrl(item.imageUrl || null);
+        }
+    }, [item.imageStorageId, item.imageUrl, getImageUrl]);
+
+    if (!url) {
+        return (
+            <div className="w-full h-full flex items-center justify-center text-gray-300">
+                <ImageIcon className="w-8 h-8" />
+            </div>
+        );
+    }
+
+    return <Image src={url} alt={item.name} fill className="object-cover" />;
+}
 
 export default function MenuManager() {
     const restaurantSlug = "burger-bistro"; // Hardcoded for demo
@@ -51,6 +77,7 @@ export default function MenuManager() {
         description_ar: "",
         price: "",
         imageUrl: "",
+        imageStorageId: "",
         categoryId: "",
         relatedModifiers: [] as string[]
     });
@@ -67,6 +94,7 @@ export default function MenuManager() {
             description_ar: item.description_ar || "",
             price: item.price.toString(),
             imageUrl: item.imageUrl || "",
+            imageStorageId: item.imageStorageId || "",
             categoryId: item.categoryId,
             relatedModifiers: item.relatedModifiers || []
         });
@@ -81,6 +109,7 @@ export default function MenuManager() {
                 description_ar: formData.description_ar || undefined,
                 price: parseFloat(formData.price),
                 imageUrl: formData.imageUrl || undefined,
+                imageStorageId: formData.imageStorageId ? (formData.imageStorageId as any) : undefined,
                 relatedModifiers: formData.relatedModifiers as any
             });
             setEditingItem(null);
@@ -94,6 +123,7 @@ export default function MenuManager() {
                 description_ar: formData.description_ar || undefined,
                 price: parseFloat(formData.price),
                 imageUrl: formData.imageUrl || undefined,
+                imageStorageId: formData.imageStorageId ? (formData.imageStorageId as any) : undefined,
                 isAvailable: true,
                 tags: [],
                 relatedModifiers: formData.relatedModifiers as any
@@ -101,7 +131,7 @@ export default function MenuManager() {
             setIsAddingItem(false);
         }
         // Reset form
-        setFormData({ name: "", description: "", description_ar: "", price: "", imageUrl: "", categoryId: "", relatedModifiers: [] });
+        setFormData({ name: "", description: "", description_ar: "", price: "", imageUrl: "", imageStorageId: "", categoryId: "", relatedModifiers: [] });
     };
 
     const handleSaveModifier = async () => {
@@ -253,13 +283,7 @@ export default function MenuManager() {
                                         <div key={item._id} className="py-6 flex items-start gap-6 hover:bg-gray-50 transition-colors group rounded-lg px-4 -mx-4">
                                             {/* Image */}
                                             <div className="w-24 h-24 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden relative border border-gray-200">
-                                                {item.imageUrl ? (
-                                                    <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center text-gray-300">
-                                                        <ImageIcon className="w-8 h-8" />
-                                                    </div>
-                                                )}
+                                                <AdminItemImage item={item} />
                                                 {!item.isAvailable && (
                                                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                                                         <span className="text-white text-xs font-bold px-2 py-1 bg-red-500 rounded">SOLD OUT</span>
@@ -409,9 +433,8 @@ export default function MenuManager() {
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
                         <ImageUpload
-                            value={formData.imageUrl}
-                            onChange={(url) => setFormData({ ...formData, imageUrl: url })}
-                            onRemove={() => setFormData({ ...formData, imageUrl: "" })}
+                            currentImageUrl={formData.imageUrl}
+                            onImageUpload={(storageId, url) => setFormData({ ...formData, imageStorageId: storageId, imageUrl: url })}
                         />
                     </div>
 
@@ -501,11 +524,9 @@ export default function MenuManager() {
                                         {trash.items.map((item: any) => (
                                             <div key={item._id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
                                                 <div className="flex items-center gap-3">
-                                                    {item.imageUrl && (
-                                                        <div className="w-10 h-10 rounded bg-gray-200 overflow-hidden relative">
-                                                            <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
-                                                        </div>
-                                                    )}
+                                                    <div className="w-10 h-10 rounded bg-gray-200 overflow-hidden relative">
+                                                        <AdminItemImage item={item} />
+                                                    </div>
                                                     <div>
                                                         <p className="font-medium text-gray-900">{item.name}</p>
                                                         <p className="text-xs text-gray-500">{item.price.toFixed(2)} DA</p>

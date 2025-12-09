@@ -48,7 +48,8 @@ const applicationTables = {
     description: v.string(),
     description_ar: v.optional(v.string()),
     price: v.number(),
-    imageUrl: v.optional(v.string()),
+    imageUrl: v.optional(v.string()), // Deprecated in favor of storageId, kept for backward compat if needed
+    imageStorageId: v.optional(v.id("_storage")),
     isAvailable: v.boolean(),
     tags: v.array(v.string()),
     isArchived: v.optional(v.boolean()),
