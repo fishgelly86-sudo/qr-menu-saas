@@ -185,9 +185,8 @@ export function ImageUpload({
                 </div>
             )}
 
-            <p className="text-xs text-gray-400 max-w-sm">
-                Automatically compressed to ~300–600KB (75% quality). Supports JPEG, PNG, WebP, up to 40MP.
-            </p>
+
+
         </div>
     );
 }
