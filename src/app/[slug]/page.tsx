@@ -143,6 +143,33 @@ export default function CustomerMenuPage() {
 
     // No auto-clear for cancelled orders - let user dismiss manually via banner
 
+    // Handle back gesture navigation for modals
+    useEffect(() => {
+        const handlePopState = (event: PopStateEvent) => {
+            if (event.state?.modal) {
+                // Close whichever modal is open
+                setSelectedItem(null);
+                setShowUpsellModal(false);
+                setShowCart(false);
+            }
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
+    // Push history state when modals open
+    useEffect(() => {
+        const hasModalOpen = selectedItem !== null || showUpsellModal || showCart;
+
+        if (hasModalOpen) {
+            // Only push if we haven't already pushed for this modal state
+            if (!window.history.state?.modal) {
+                window.history.pushState({ modal: true }, '');
+            }
+        }
+    }, [selectedItem, showUpsellModal, showCart]);
+
     // Derived State
     const cartTotal = cart.reduce((sum, item) => {
         const itemBaseTotal = item.price * item.quantity;
