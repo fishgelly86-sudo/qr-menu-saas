@@ -837,17 +837,16 @@ export default function CustomerMenuPage() {
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-5 mt-4 text-sm font-medium">
+                                <div className="flex items-center gap-2 mt-4">
                                     <button
                                         onClick={() => handleRemoveFromCart(index)}
-                                        className="text-red-500 hover:text-red-700 transition-colors"
+                                        className="px-3 py-1 rounded-lg text-sm font-medium text-red-500 border border-red-200 hover:bg-red-50 hover:border-red-300 transition-colors"
                                     >
                                         {t("remove")}
                                     </button>
-                                    <span className="text-gray-300">|</span>
                                     <button
                                         onClick={() => handleEditExtras(index)}
-                                        className="text-gray-500 hover:text-[#D4AF37] transition-colors"
+                                        className="px-3 py-1 rounded-lg text-sm font-medium text-amber-600 border border-amber-200 hover:bg-amber-50 hover:border-amber-300 transition-colors"
                                     >
                                         {item.modifiers && item.modifiers.length > 0
                                             ? (t("edit_extras") || "Edit Extras")
