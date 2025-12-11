@@ -44,5 +44,10 @@
     "add_items": "Add {count} Items",
     "special_instructions": "Special Instructions",
     "allergies_placeholder": "Allergies? Extra spicy? Let us know...",
-    "description": "Description"
+    "description": "Description",
+    "cart_updated": "Cart updated",
+    "edit_extras": "Edit Extras",
+    "add_extras": "Add Extras",
+    "quantity": "Quantity",
+    "extras": "Extras"
 }

@@ -44,5 +44,10 @@
     "add_items": "أضف {count} عناصر",
     "special_instructions": "تعليمات خاصة",
     "allergies_placeholder": "حساسية؟ حار إضافي؟ أخبرنا...",
-    "description": "الوصف"
+    "description": "الوصف",
+    "cart_updated": "تم تحديث العربة",
+    "edit_extras": "تعديل الإضافات",
+    "add_extras": "إضافة إضافات",
+    "quantity": "الكمية",
+    "extras": "إضافات"
 }

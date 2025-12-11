@@ -26,7 +26,7 @@ interface CartItem {
     quantity: number;
     notes?: string;
     imageUrl?: string;
-    isUpsell?: boolean;
+    modifiers?: (UpsellItem & { quantity: number })[];
 }
 
 // Mock Upsell Data removed - using real modifiers now
@@ -79,6 +79,11 @@ export default function CustomerMenuPage() {
         type: "success",
         isVisible: false,
     });
+
+    // State for editing extras
+    const [editingCartItemIndex, setEditingCartItemIndex] = useState<number | null>(null);
+
+    const [upsellInitialQuantities, setUpsellInitialQuantities] = useState<Record<string, number>>({});
 
     const categoryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
@@ -139,7 +144,11 @@ export default function CustomerMenuPage() {
     // No auto-clear for cancelled orders - let user dismiss manually via banner
 
     // Derived State
-    const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const cartTotal = cart.reduce((sum, item) => {
+        const itemBaseTotal = item.price * item.quantity;
+        const modifiersTotal = item.modifiers?.reduce((modSum, mod) => modSum + (mod.price * mod.quantity), 0) || 0;
+        return sum + itemBaseTotal + modifiersTotal;
+    }, 0);
     const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
     const filteredCategories = menu?.categories.map((category: any) => ({
@@ -164,7 +173,11 @@ export default function CustomerMenuPage() {
         }
     };
 
-    const handleInitialAddToCart = () => {
+    const handleInitialAddToCart = (e?: React.MouseEvent) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
         if (!selectedItem) return;
 
         // Check for related modifiers
@@ -183,6 +196,7 @@ export default function CustomerMenuPage() {
 
             if (specificModifiers.length > 0) {
                 setCurrentUpsells(specificModifiers);
+                setUpsellInitialQuantities({}); // Reset for new item
                 setShowUpsellModal(true);
                 return;
             }
@@ -192,8 +206,13 @@ export default function CustomerMenuPage() {
         addToCart();
     };
 
-    const addToCart = (upsells: UpsellItem[] = []) => {
+    const addToCart = (upsells: (UpsellItem & { quantity?: number })[] = []) => {
         if (!selectedItem) return;
+
+        const modifiers = upsells.map(u => ({
+            ...u,
+            quantity: u.quantity || 1
+        }));
 
         const newItem: CartItem = {
             menuItemId: selectedItem._id,
@@ -202,17 +221,10 @@ export default function CustomerMenuPage() {
             quantity: itemQuantity,
             notes: itemNotes,
             imageUrl: selectedItem.imageUrl,
+            modifiers
         };
 
-        const upsellItems: CartItem[] = upsells.map(upsell => ({
-            menuItemId: upsell.id,
-            name: upsell.name,
-            price: upsell.price,
-            quantity: 1,
-            isUpsell: true
-        }));
-
-        setCart(prev => [...prev, newItem, ...upsellItems]);
+        setCart(prev => [...prev, newItem]);
         setSelectedItem(null);
         setItemQuantity(1);
         setItemNotes("");
@@ -220,15 +232,79 @@ export default function CustomerMenuPage() {
         showToast(t("added_to_cart"), "success");
     };
 
-    const handleConfirmUpsell = (upsellIds: string[]) => {
-        if (!selectedItem) {
-            setShowUpsellModal(false);
-            return;
+    const handleConfirmUpsell = (upsellSelections: { id: string; quantity: number }[]) => {
+        const selectedUpsells = upsellSelections.map(selection => {
+            const original = currentUpsells.find(u => u.id === selection.id);
+            if (!original) return null;
+            return { ...original, quantity: selection.quantity };
+        }).filter(Boolean) as (UpsellItem & { quantity: number })[];
+
+        if (editingCartItemIndex !== null) {
+            // Updating existing cart item
+            handleUpdateCartItemExtras(editingCartItemIndex, selectedUpsells);
+        } else if (selectedItem) {
+            // Adding new item
+            addToCart(selectedUpsells);
         }
 
-        const selectedUpsells = currentUpsells.filter(u => upsellIds.includes(u.id));
-        addToCart(selectedUpsells);
         setShowUpsellModal(false);
+        setEditingCartItemIndex(null);
+    };
+
+    const handleEditExtras = (index: number) => {
+        const item = cart[index];
+        // We need to fetch the modifiers for this item again to populate the modal options
+        // For simplicity, we assume we can get them from menu.modifiers using the item's ID or if we stored available modifiers
+        // But the previous implementation fetched specific modifiers dynamically.
+        // Ideally, we should store availableModifiers on the cart item or re-fetch.
+        // Given current structure, let's assume we can find the relevant modifiers from menu.modifiers
+        // that are related to this menu item.
+
+        // We need to find the original menu item to get relatedModifierIds
+        // Since we don't have it easily, we might need to rely on what was previously fetched or fetch again.
+        // A robust way: store related modifiers in the cart item or just store the IDs.
+
+        // Workaround: Find the item in the menu
+        let originalItem: any = null;
+        for (const cat of menu.categories) {
+            const found = cat.items.find((i: any) => i._id === item.menuItemId);
+            if (found) {
+                originalItem = found;
+                break;
+            }
+        }
+
+        if (originalItem && originalItem.relatedModifiers && menu.modifiers) {
+            const specificModifiers = menu.modifiers
+                .filter((mod: any) => originalItem.relatedModifiers.includes(mod._id))
+                .map((mod: any) => ({
+                    id: mod._id,
+                    name: mod.name,
+                    price: mod.price,
+                    description: mod.name_ar && language === 'ar' ? mod.name_ar : undefined
+                }));
+
+            setCurrentUpsells(specificModifiers);
+
+            // Populate initial quantities from current cart item modifiers
+            const initialQty: Record<string, number> = {};
+            if (item.modifiers) {
+                item.modifiers.forEach(mod => {
+                    initialQty[mod.id] = mod.quantity;
+                });
+            }
+            setUpsellInitialQuantities(initialQty);
+
+            setEditingCartItemIndex(index);
+            setShowUpsellModal(true);
+        }
+    };
+
+    const handleUpdateCartItemExtras = (index: number, newModifiers: (UpsellItem & { quantity: number })[]) => {
+        const newCart = [...cart];
+        newCart[index] = { ...newCart[index], modifiers: newModifiers };
+        setCart(newCart);
+        showToast(t("cart_updated"), "success");
     };
 
     const handleRemoveFromCart = (index: number) => {
@@ -245,6 +321,23 @@ export default function CustomerMenuPage() {
         }
     };
 
+    const handleUpdateCartModifierQuantity = (cartIndex: number, modIndex: number, delta: number) => {
+        const newCart = [...cart];
+        const item = newCart[cartIndex];
+        if (item.modifiers && item.modifiers[modIndex]) {
+            const newQuantity = (item.modifiers[modIndex].quantity || 0) + delta;
+
+            if (newQuantity <= 0) {
+                // If quantity becomes 0 or less, remove the modifier
+                item.modifiers.splice(modIndex, 1);
+            } else {
+                item.modifiers[modIndex].quantity = newQuantity;
+            }
+
+            setCart(newCart);
+        }
+    };
+
     const handlePlaceOrder = async () => {
         if (!tableNumber || cart.length === 0 || !menu?.restaurant?._id) return;
 
@@ -253,6 +346,10 @@ export default function CustomerMenuPage() {
                 menuItemId: item.menuItemId as any,
                 quantity: item.quantity,
                 notes: item.notes,
+                modifiers: item.modifiers?.map(m => ({
+                    modifierId: m.id,
+                    quantity: m.quantity
+                }))
             }));
 
             const orderId = await createOrder({
@@ -266,7 +363,6 @@ export default function CustomerMenuPage() {
             setCurrentOrderId(orderId); // Start tracking
             setActiveOrderIds(prev => [...prev, orderId]); // Add to history
         } catch (error) {
-
             showToast(t("failed_place_order"), "error");
         }
     };
@@ -475,14 +571,13 @@ export default function CustomerMenuPage() {
                     </div>
                     <div className="flex items-center gap-2">
                         <LanguageSwitcher />
-                        <Button
-                            variant="ghost"
+                        <button
                             onClick={() => setShowWaiterDialog(true)}
-                            className="text-[#D4AF37] hover:bg-[#D4AF37]/20 bg-amber-500/10 flex items-center gap-2 px-3"
+                            className="flex items-center gap-2 px-3 py-1.5 border border-amber-500/30 text-amber-500 rounded-full text-sm hover:bg-amber-500/10 transition-colors"
                         >
-                            <BellRing className="w-4 h-4" />
-                            <span className="text-sm font-medium hidden sm:inline">{t("call_waiter")}</span>
-                        </Button>
+                            <BellRing size={16} />
+                            <span className="font-medium">{t("call_waiter")}</span>
+                        </button>
                     </div>
                 </div>
             </header>
@@ -622,7 +717,7 @@ export default function CustomerMenuPage() {
                 <div className="fixed bottom-6 left-4 right-4 z-30 max-w-2xl mx-auto">
                     <button
                         onClick={() => setShowCart(true)}
-                        className="w-full bg-gradient-to-r from-[#D4AF37] to-[#c4a027] text-[#1a1a2e] p-4 rounded-2xl shadow-xl shadow-[#D4AF37]/30 flex items-center justify-between hover:scale-[1.02] transition-all duration-300"
+                        className="w-full bg-gradient-to-r from-[#D4AF37] to-[#c4a027] text-[#1a1a2e] p-4 rounded-2xl flex items-center justify-between hover:scale-[1.02] transition-all duration-300 animate-glow"
                     >
                         <div className="flex items-center gap-3">
                             <div className="bg-[#1a1a2e] text-[#D4AF37] px-3 py-1 rounded-lg font-bold text-sm shadow-inner">
@@ -666,43 +761,99 @@ export default function CustomerMenuPage() {
             >
                 <div className="space-y-6 pb-40">
                     {cart.map((item, index) => (
-                        <div key={index} className={`flex gap-4 ${item.isUpsell ? "pl-8 border-l-2 border-[#D4AF37]/20" : ""}`}>
-                            {!item.isUpsell && item.imageUrl && (
-                                <div className="w-16 h-16 relative rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border border-[#D4AF37]/20">
+                        <div key={index} className={`flex gap-4 py-6 ${index !== cart.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                            {item.imageUrl && (
+                                <div className="w-24 h-24 relative rounded-xl overflow-hidden flex-shrink-0 bg-gray-50">
                                     <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
                                 </div>
                             )}
-                            <div className="flex-1">
-                                <div className="flex justify-between items-start">
-                                    <h3 className="font-serif font-bold text-[#1a1a2e] text-sm">{item.name}</h3>
-                                    <span className="font-bold text-[#1a1a2e] text-sm">
-                                        {"DA"} {(item.price * item.quantity).toFixed(2)}
-                                    </span>
-                                </div>
-                                {item.notes && <p className="text-xs text-gray-500 mt-1 italic">"{item.notes}"</p>}
+                            <div className="flex-1 min-w-0 flex flex-col justify-between">
+                                <div>
+                                    <div className="flex justify-between items-start mb-2">
+                                        <h3 className="font-serif font-bold text-[#1a1a2e] text-lg leading-tight pr-4">{item.name}</h3>
+                                        <span className="text-sm text-gray-500 whitespace-nowrap">
+                                            DA {item.price.toFixed(2)}
+                                        </span>
+                                    </div>
 
-                                <div className="flex items-center justify-between mt-3">
+                                    {/* Main Item Quantity Control */}
+                                    <div className="flex items-center gap-4 mt-2 mb-3">
+                                        <span className="text-gray-500 text-sm font-medium">{t("quantity") || "Qty"}:</span>
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                onClick={() => handleUpdateCartQuantity(index, -1)}
+                                                className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center hover:bg-[#D4AF37]/10 text-gray-600 hover:text-[#D4AF37] transition-colors disabled:opacity-50"
+                                            >
+                                                <Minus className="w-4 h-4" />
+                                            </button>
+                                            <span className="w-8 text-center font-bold text-[#1a1a2e] text-lg">{item.quantity}</span>
+                                            <button
+                                                onClick={() => handleUpdateCartQuantity(index, 1)}
+                                                className="w-8 h-8 rounded-full bg-[#D4AF37] flex items-center justify-center hover:bg-[#c4a027] text-white shadow-md shadow-[#D4AF37]/20 transition-all hover:scale-105"
+                                            >
+                                                <Plus className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Modifiers List with Quantity Controls */}
+                                    {item.modifiers && item.modifiers.length > 0 && (
+                                        <div className="space-y-2 mt-2 pt-2 animate-in fade-in slide-in-from-top-1 duration-300">
+                                            {item.modifiers.map((mod, i) => (
+                                                <div key={i} className="flex items-center justify-between pl-2 border-l-2 border-gray-100">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm text-gray-600">{mod.name}</span>
+                                                        <span className="text-xs text-[#D4AF37]">+{mod.price} DA</span>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-3">
+                                                        <button
+                                                            onClick={() => handleUpdateCartModifierQuantity(index, i, -1)}
+                                                            className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center hover:bg-[#D4AF37]/10 text-gray-400 hover:text-[#D4AF37] transition-colors"
+                                                        >
+                                                            <Minus className="w-3 h-3" />
+                                                        </button>
+                                                        <span className="w-4 text-center font-bold text-sm text-[#1a1a2e]">{mod.quantity}</span>
+                                                        <button
+                                                            onClick={() => handleUpdateCartModifierQuantity(index, i, 1)}
+                                                            className="w-6 h-6 rounded-full bg-[#D4AF37]/10 flex items-center justify-center hover:bg-[#D4AF37] hover:text-white text-[#D4AF37] transition-all"
+                                                        >
+                                                            <Plus className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {item.notes && <p className="text-sm text-gray-500 mt-2 italic pl-2 border-l-2 border-yellow-200/50">"{item.notes}"</p>}
+
+                                    {/* Line Total */}
+                                    <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-100">
+                                        <span className="text-sm font-medium text-gray-600">Line Total:</span>
+                                        <span className="font-bold text-[#D4AF37] text-lg">
+                                            DA {((item.price * item.quantity) + (item.modifiers?.reduce((sum, m) => sum + (m.price * m.quantity), 0) || 0)).toFixed(2)}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-5 mt-4 text-sm font-medium">
                                     <button
                                         onClick={() => handleRemoveFromCart(index)}
-                                        className="text-xs text-red-500 font-medium hover:text-red-600 transition-colors"
+                                        className="text-red-500 hover:text-red-700 transition-colors"
                                     >
                                         {t("remove")}
                                     </button>
-                                    <div className="flex items-center gap-3 bg-white p-1 rounded-xl w-fit shadow-sm border border-gray-100">
-                                        <button
-                                            onClick={() => handleUpdateCartQuantity(index, -1)}
-                                            className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-700"
-                                        >
-                                            <Minus className="w-3.5 h-3.5" />
-                                        </button>
-                                        <span className="text-base font-semibold w-8 text-center text-[#1a1a2e]">{item.quantity}</span>
-                                        <button
-                                            onClick={() => handleUpdateCartQuantity(index, 1)}
-                                            className="w-8 h-8 rounded-lg bg-[#D4AF37] flex items-center justify-center hover:bg-[#c4a027] transition-colors text-white shadow-sm"
-                                        >
-                                            <Plus className="w-3.5 h-3.5" />
-                                        </button>
-                                    </div>
+                                    <span className="text-gray-300">|</span>
+                                    <button
+                                        onClick={() => handleEditExtras(index)}
+                                        className="text-gray-500 hover:text-[#D4AF37] transition-colors"
+                                    >
+                                        {item.modifiers && item.modifiers.length > 0
+                                            ? (t("edit_extras") || "Edit Extras")
+                                            : (t("add_extras") || "Add Extras")
+                                        }
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -720,7 +871,7 @@ export default function CustomerMenuPage() {
                         <Button
                             onClick={handlePlaceOrder}
                             disabled={!tableNumber}
-                            className="w-full h-14 text-lg font-serif tracking-wide shadow-xl shadow-[#D4AF37]/20"
+                            className="w-full h-14 text-lg font-serif tracking-wide animate-glow"
                         >
                             {tableNumber ? t("confirm_order") : t("select_table_first")}
                         </Button>
@@ -815,6 +966,7 @@ export default function CustomerMenuPage() {
                             </span>
                             <div className="flex items-center gap-4 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
                                 <button
+                                    type="button"
                                     onClick={() => setItemQuantity(Math.max(1, itemQuantity - 1))}
                                     className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-700"
                                 >
@@ -822,6 +974,7 @@ export default function CustomerMenuPage() {
                                 </button>
                                 <span className="text-xl font-bold w-8 text-center text-[#1a1a2e]">{itemQuantity}</span>
                                 <button
+                                    type="button"
                                     onClick={() => setItemQuantity(itemQuantity + 1)}
                                     className="w-10 h-10 rounded-xl bg-[#D4AF37] flex items-center justify-center hover:bg-[#c4a027] transition-colors text-white shadow-sm"
                                 >
@@ -839,6 +992,8 @@ export default function CustomerMenuPage() {
                             </div>
                         )}
 
+
+
                         <div className="space-y-3">
                             <label className="text-sm font-bold text-[#1a1a2e] uppercase tracking-wider">{t("special_instructions")}</label>
                             <textarea
@@ -851,8 +1006,9 @@ export default function CustomerMenuPage() {
 
                         <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-10">
                             <Button
+                                type="button"
                                 onClick={handleInitialAddToCart}
-                                className="w-full h-14 text-lg font-serif tracking-wide shadow-xl shadow-[#D4AF37]/20"
+                                className="w-full h-14 text-lg font-serif tracking-wide animate-glow"
                             >
                                 {t("add_to_order")} • {(selectedItem.price * itemQuantity).toFixed(2)} DA
                             </Button>
@@ -866,6 +1022,7 @@ export default function CustomerMenuPage() {
                 isOpen={showUpsellModal}
                 onClose={() => setShowUpsellModal(false)}
                 upsellItems={currentUpsells}
+                initialQuantities={upsellInitialQuantities}
                 onConfirm={handleConfirmUpsell}
             />
         </div>

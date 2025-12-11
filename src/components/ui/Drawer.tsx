@@ -23,6 +23,14 @@ export function Drawer({ isOpen, onClose, children, title }: DrawerProps) {
                         className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm"
                     />
                     <motion.div
+                        drag="y"
+                        dragConstraints={{ top: 0, bottom: 0 }}
+                        dragElastic={{ top: 0.05, bottom: 1 }}
+                        onDragEnd={(_, info) => {
+                            if (info.offset.y > 100 || info.velocity.y > 500) {
+                                onClose();
+                            }
+                        }}
                         initial={{ y: "100%" }}
                         animate={{ y: 0 }}
                         exit={{ y: "100%" }}
