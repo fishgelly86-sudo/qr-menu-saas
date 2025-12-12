@@ -146,9 +146,8 @@ export default function CustomerMenuPage() {
     // Handle back gesture navigation for modals
     useEffect(() => {
         const handlePopState = (event: PopStateEvent) => {
-            // If the state we popped to does NOT have 'modal', it means we went back to the base state.
-            // So we should close all modals.
-            if (!event.state?.modal) {
+            if (event.state?.modal) {
+                // Close whichever modal is open
                 setSelectedItem(null);
                 setShowUpsellModal(false);
                 setShowCart(false);
@@ -970,9 +969,8 @@ export default function CustomerMenuPage() {
                 isOpen={!!selectedItem}
                 onClose={() => setSelectedItem(null)}
                 title={t("item_details")}
-            >
-                {selectedItem && (
-                    <div className="space-y-8 pb-32">
+                headerContent={selectedItem && (
+                    <div className="space-y-6 pb-4">
                         {selectedItem.imageUrl && (
                             <div className="w-full h-64 relative rounded-2xl overflow-hidden shadow-2xl">
                                 <Image src={selectedItem.imageUrl} alt={selectedItem.name} fill className="object-cover" />
@@ -984,14 +982,14 @@ export default function CustomerMenuPage() {
                         )}
 
                         {!selectedItem.imageUrl && (
-                            <h2 className="text-3xl font-serif font-bold text-[#1a1a2e]">{selectedItem.name}</h2>
+                            <h2 className="text-3xl font-serif font-bold text-[#1a1a2e] px-2">{selectedItem.name}</h2>
                         )}
 
-                        <div className="flex items-center justify-between border-b border-gray-100 pb-6">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-6 px-2">
                             <span className="text-3xl font-serif font-bold text-[#D4AF37]">
                                 {selectedItem.price.toFixed(2)} DA
                             </span>
-                            <div className="flex items-center gap-4 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
+                            <div className="flex items-center gap-4 bg-white p-2 rounded-2xl shadow-sm border border-gray-100" onPointerDown={(e) => e.stopPropagation()}>
                                 <button
                                     type="button"
                                     onClick={() => setItemQuantity(Math.max(1, itemQuantity - 1))}
@@ -1009,7 +1007,11 @@ export default function CustomerMenuPage() {
                                 </button>
                             </div>
                         </div>
-
+                    </div>
+                )}
+            >
+                {selectedItem && (
+                    <div className="space-y-8 pb-8">
                         {(selectedItem.description || (language === 'ar' && selectedItem.description_ar)) && (
                             <div className="space-y-2">
                                 <label className="text-sm font-bold text-[#1a1a2e] uppercase tracking-wider">{t("description")}</label>
@@ -1018,8 +1020,6 @@ export default function CustomerMenuPage() {
                                 </p>
                             </div>
                         )}
-
-
 
                         <div className="space-y-3">
                             <label className="text-sm font-bold text-[#1a1a2e] uppercase tracking-wider">{t("special_instructions")}</label>
@@ -1031,7 +1031,7 @@ export default function CustomerMenuPage() {
                             />
                         </div>
 
-                        <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-10">
+                        <div className="pt-4">
                             <Button
                                 type="button"
                                 onClick={handleInitialAddToCart}
