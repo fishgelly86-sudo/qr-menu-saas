@@ -9,6 +9,10 @@ export const createOrder = mutation({
       menuItemId: v.string(),
       quantity: v.number(),
       notes: v.optional(v.string()),
+      modifiers: v.optional(v.array(v.object({
+        modifierId: v.string(),
+        quantity: v.number()
+      })))
     })),
     customerId: v.optional(v.id("customers")),
   },
@@ -52,7 +56,7 @@ export const createOrder = mutation({
       orderId = await ctx.db.insert("orders", {
         restaurantId: args.restaurantId,
         tableId: tableId,
-        status: "pending",
+        status: "pending", // Initial status verified
         totalAmount: 0, // Will be calculated below
         customerId: args.customerId,
       });
@@ -69,26 +73,6 @@ export const createOrder = mutation({
 
     for (const item of args.items) {
       // Try to get menu item
-      let menuItem: any = await ctx.db.get(item.menuItemId as any);
-
-      // If not found, try to get modifier
-      if (!menuItem) {
-        menuItem = await ctx.db.get(item.menuItemId as any);
-        // Wait, if it's a modifier ID, we need to query modifiers table?
-        // No, ctx.db.get works with ID if we cast it, but we need to know which table if we want to be safe?
-        // Actually ctx.db.get(id) works for any table if the ID is valid.
-        // But let's be explicit if possible, or just rely on get.
-        // However, we need to check availability for menu items, but maybe not for modifiers?
-        // Modifiers don't have isAvailable field in our schema yet.
-      }
-
-      // Let's try to fetch from menuItems first (if it looks like a menu item ID)
-      // Actually, we can just try ctx.db.get. If it returns null, it's invalid.
-      // But we need to check isAvailable ONLY if it's a menu item.
-
-      // Better approach:
-      // We don't know if it's a menu item or modifier ID just by looking at the string (unless we parse it, but that's internal).
-      // We can try to fetch.
       const dbItem = await ctx.db.get(item.menuItemId as any);
 
       if (!dbItem) {
@@ -100,15 +84,29 @@ export const createOrder = mutation({
         throw new Error(`Menu item ${dbItem.name} is not available`);
       }
 
+      // Calculate modifiers total and validate them
+      let modifiersTotal = 0;
+      if (item.modifiers) {
+        for (const mod of item.modifiers) {
+          const modifier: any = await ctx.db.get(mod.modifierId as any);
+          if (!modifier) {
+            console.warn(`Modifier ${mod.modifierId} not found, skipping price calculation`);
+            continue;
+          }
+          modifiersTotal += modifier.price * mod.quantity;
+        }
+      }
+
       await ctx.db.insert("orderItems", {
         orderId,
         menuItemId: item.menuItemId,
         quantity: item.quantity,
         notes: item.notes,
+        modifiers: item.modifiers,
         addedAt,
       });
 
-      totalAmount += (dbItem as any).price * item.quantity;
+      totalAmount += ((dbItem as any).price * item.quantity) + modifiersTotal;
     }
 
     // Update order total
@@ -337,3 +335,5 @@ export const getOrdersByIds = query({
     return orders.filter((o) => o !== null && !o.isArchived);
   },
 });
+
+// Sync revert

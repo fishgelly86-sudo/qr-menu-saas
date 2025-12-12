@@ -83,6 +83,10 @@ const applicationTables = {
     menuItemId: v.string(),
     quantity: v.number(),
     notes: v.optional(v.string()),
+    modifiers: v.optional(v.array(v.object({
+      modifierId: v.string(),
+      quantity: v.number()
+    }))),
     addedAt: v.number(),
   }).index("by_order", ["orderId"])
     .index("by_menu_item", ["menuItemId"]),

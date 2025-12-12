@@ -49,10 +49,19 @@ export default function CustomerMenuPage() {
     };
 
     const getStatusLabel = (status: string) => {
-        if (language === 'ar' && statusTranslations[status.toLowerCase()]) {
-            return statusTranslations[status.toLowerCase()];
+        const lower = status.toLowerCase();
+        if (language === 'ar' && statusTranslations[lower]) {
+            return statusTranslations[lower];
         }
-        return status.toUpperCase();
+        const englishLabels: Record<string, string> = {
+            pending: 'Order Placed',
+            preparing: 'Preparing',
+            ready: 'Ready',
+            served: 'Served',
+            paid: 'Paid',
+            cancelled: 'Cancelled'
+        };
+        return englishLabels[lower] || status.toUpperCase();
     };
 
     // State
@@ -436,10 +445,10 @@ export default function CustomerMenuPage() {
 
     if (currentOrderId && trackedOrder) {
         const steps = [
-            { status: "pending", label: t("order_sent"), icon: Clock },
-            { status: "preparing", label: t("chef_is_cooking"), icon: ChefHat },
-            { status: "ready", label: t("ready_to_serve"), icon: Bell },
-            { status: "served", label: t("bon_appetit"), icon: Utensils },
+            { status: "pending", label: t("order_sent") || "Order Placed", icon: Clock },
+            { status: "preparing", label: t("chef_is_cooking") || "Preparing", icon: ChefHat },
+            { status: "ready", label: t("ready_to_serve") || "Ready!", icon: Bell },
+            { status: "served", label: t("bon_appetit") || "Bon Appétit", icon: Utensils },
         ];
 
         const currentStepIndex = steps.findIndex(s => s.status === trackedOrder.status);
@@ -970,9 +979,8 @@ export default function CustomerMenuPage() {
                 isOpen={!!selectedItem}
                 onClose={() => setSelectedItem(null)}
                 title={t("item_details")}
-            >
-                {selectedItem && (
-                    <div className="space-y-8 pb-32">
+                headerContent={selectedItem && (
+                    <div className="space-y-6 pb-4 pt-2">
                         {selectedItem.imageUrl && (
                             <div className="w-full h-64 relative rounded-2xl overflow-hidden shadow-2xl">
                                 <Image src={selectedItem.imageUrl} alt={selectedItem.name} fill className="object-cover" />
@@ -984,14 +992,14 @@ export default function CustomerMenuPage() {
                         )}
 
                         {!selectedItem.imageUrl && (
-                            <h2 className="text-3xl font-serif font-bold text-[#1a1a2e]">{selectedItem.name}</h2>
+                            <h2 className="text-3xl font-serif font-bold text-[#1a1a2e] px-2">{selectedItem.name}</h2>
                         )}
 
-                        <div className="flex items-center justify-between border-b border-gray-100 pb-6">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-6 px-2">
                             <span className="text-3xl font-serif font-bold text-[#D4AF37]">
                                 {selectedItem.price.toFixed(2)} DA
                             </span>
-                            <div className="flex items-center gap-4 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
+                            <div className="flex items-center gap-4 bg-white p-2 rounded-2xl shadow-sm border border-gray-100" onPointerDown={(e) => e.stopPropagation()}>
                                 <button
                                     type="button"
                                     onClick={() => setItemQuantity(Math.max(1, itemQuantity - 1))}
@@ -1009,7 +1017,20 @@ export default function CustomerMenuPage() {
                                 </button>
                             </div>
                         </div>
-
+                    </div>
+                )}
+                footer={selectedItem && (
+                    <Button
+                        type="button"
+                        onClick={handleInitialAddToCart}
+                        className="w-full h-14 text-lg font-serif tracking-wide animate-glow"
+                    >
+                        {t("add_to_order")} • {(selectedItem.price * itemQuantity).toFixed(2)} DA
+                    </Button>
+                )}
+            >
+                {selectedItem && (
+                    <div className="space-y-8 pb-4">
                         {(selectedItem.description || (language === 'ar' && selectedItem.description_ar)) && (
                             <div className="space-y-2">
                                 <label className="text-sm font-bold text-[#1a1a2e] uppercase tracking-wider">{t("description")}</label>
@@ -1019,8 +1040,6 @@ export default function CustomerMenuPage() {
                             </div>
                         )}
 
-
-
                         <div className="space-y-3">
                             <label className="text-sm font-bold text-[#1a1a2e] uppercase tracking-wider">{t("special_instructions")}</label>
                             <textarea
@@ -1029,16 +1048,6 @@ export default function CustomerMenuPage() {
                                 placeholder={t("allergies_placeholder")}
                                 className="w-full p-4 rounded-xl bg-gray-50 border-gray-200 focus:border-[#D4AF37] focus:ring-[#D4AF37] min-h-[100px] resize-none text-[#1a1a2e]"
                             />
-                        </div>
-
-                        <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-10">
-                            <Button
-                                type="button"
-                                onClick={handleInitialAddToCart}
-                                className="w-full h-14 text-lg font-serif tracking-wide animate-glow"
-                            >
-                                {t("add_to_order")} • {(selectedItem.price * itemQuantity).toFixed(2)} DA
-                            </Button>
                         </div>
                     </div>
                 )}

@@ -24,7 +24,7 @@ export default function AdminDashboard() {
     const minDate = startOfToday.getTime();
 
     const orders = useQuery(api.orders.getOrdersByRestaurant,
-        restaurant ? { restaurantId: restaurant._id, minDate } : "skip"
+        restaurant ? { restaurantId: restaurant._id } : "skip"
     ) as any;
 
     const updateStatus = useMutation(api.orders.updateOrderStatus);
