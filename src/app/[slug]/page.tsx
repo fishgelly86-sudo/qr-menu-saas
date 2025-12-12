@@ -146,8 +146,9 @@ export default function CustomerMenuPage() {
     // Handle back gesture navigation for modals
     useEffect(() => {
         const handlePopState = (event: PopStateEvent) => {
-            if (event.state?.modal) {
-                // Close whichever modal is open
+            // If the state we popped to does NOT have 'modal', it means we went back to the base state.
+            // So we should close all modals.
+            if (!event.state?.modal) {
                 setSelectedItem(null);
                 setShowUpsellModal(false);
                 setShowCart(false);
