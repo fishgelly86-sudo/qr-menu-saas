@@ -116,6 +116,26 @@ const applicationTables = {
   }).index("by_restaurant", ["restaurantId"])
     .index("by_table", ["tableId"])
     .index("by_restaurant_and_status", ["restaurantId", "status"]),
+
+  managers: defineTable({
+    restaurantId: v.id("restaurants"),
+    email: v.string(),
+    isOnline: v.boolean(),
+    lastHeartbeat: v.optional(v.number()),
+    lastSeenAt: v.number(),
+    sessionExpiresAt: v.number(),
+  }).index("by_restaurant", ["restaurantId"])
+    .index("by_email", ["email"]),
+
+  qrcodes: defineTable({
+    restaurantId: v.id("restaurants"),
+    tableId: v.optional(v.id("tables")),
+    code: v.string(), // Unique token
+    type: v.union(v.literal("menu"), v.literal("payment")),
+    expiresAt: v.number(),
+    isActive: v.boolean(),
+  }).index("by_code", ["code"])
+    .index("by_restaurant", ["restaurantId"]),
 };
 
 export default defineSchema({

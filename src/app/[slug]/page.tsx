@@ -6,7 +6,7 @@ import { api } from "../../../convex/_generated/api";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
-import { Plus, Minus, ShoppingCart, Bell, BellRing, Star, Heart, Clock, ChefHat, CheckCircle2, Utensils, X } from "lucide-react";
+import { Plus, Minus, ShoppingCart, BellRing, Star, Heart, CheckCircle2, X, Clock } from "lucide-react";
 
 // UI Components
 import { Button } from "@/components/ui/Button";
@@ -18,6 +18,7 @@ import { SearchBar } from "@/components/ui/SearchBar";
 import { UpsellModal, UpsellItem } from "@/components/ui/UpsellModal";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { OrderStatus } from "@/components/OrderStatus";
 
 interface CartItem {
     menuItemId: string;
@@ -64,6 +65,8 @@ export default function CustomerMenuPage() {
         return englishLabels[lower] || status.toUpperCase();
     };
 
+
+
     // State
     const [tableNumber, setTableNumber] = useState<string | null>(tableParam);
     const [showTableSelector, setShowTableSelector] = useState(false);
@@ -100,8 +103,10 @@ export default function CustomerMenuPage() {
     const menu = useQuery(api.restaurants.getMenu, { restaurantSlug: slug }) as any;
     const trackedOrder = useQuery(api.orders.getOrder, currentOrderId ? { orderId: currentOrderId } : "skip");
     const activeOrders = useQuery(api.orders.getOrdersByIds, activeOrderIds.length > 0 ? { orderIds: activeOrderIds as any } : "skip");
-    const createOrder = useMutation(api.orders.createOrder);
     const callWaiter = useMutation(api.waiterCalls.callWaiter);
+
+    // Security: Check Manager Status
+    const managerStatus = useQuery(api.managers.isManagerOnline, menu?.restaurant?._id ? { restaurantId: menu.restaurant._id } : "skip");
 
     // Effects
     useEffect(() => {
@@ -135,20 +140,38 @@ export default function CustomerMenuPage() {
     }, [activeOrderIds]);
 
     // Watch for archived or cancelled orders and clean up
+    // Watch for archived orders (Current View)
+    // Watch for archived orders (Current View)
     useEffect(() => {
+        /*
+        console.log("TrackedOrder Effect:", trackedOrder);
+        if (trackedOrder && trackedOrder.isArchived) {
+            console.log("Order is archived, clearing currentOrderId");
+            setCurrentOrderId(null);
+            showToast(t("table_cleared"), "success");
+        }
+        */
+    }, [trackedOrder]);
+
+    // Sync local history with valid backend orders
+    useEffect(() => {
+        /*
         if (activeOrders) {
             const validOrderIds = activeOrders.map((o: any) => o._id);
-            // If the current order is no longer in the valid list (archived), reset view
-            if (currentOrderId && !validOrderIds.includes(currentOrderId)) {
-                setCurrentOrderId(null);
-                showToast(t("table_cleared"), "success");
-            }
-            // Sync local state with valid orders from backend
+            // Only update if lengths differ to avoid loops, but also check for content mismatch if needed
+            // Ideally we just set it to valid ones.
             if (validOrderIds.length !== activeOrderIds.length) {
+                // We don't want to remove the currentOrderId if it's just missing because of query lag
+                // But activeOrders query SHOULD respond to activeOrderIds change.
+                
+                // Safe guard: if currentOrderId is in activeOrderIds but NOT in validOrderIds, 
+                // it might mean it's archived OR data is stale. 
+                // Since we check archived above with trackedOrder, we can be safer here.
                 setActiveOrderIds(validOrderIds);
             }
         }
-    }, [activeOrders, currentOrderId, activeOrderIds]);
+        */
+    }, [activeOrders, activeOrderIds]);
 
     // No auto-clear for cancelled orders - let user dismiss manually via banner
 
@@ -292,13 +315,7 @@ export default function CustomerMenuPage() {
         // We need to fetch the modifiers for this item again to populate the modal options
         // For simplicity, we assume we can get them from menu.modifiers using the item's ID or if we stored available modifiers
         // But the previous implementation fetched specific modifiers dynamically.
-        // Ideally, we should store availableModifiers on the cart item or re-fetch.
-        // Given current structure, let's assume we can find the relevant modifiers from menu.modifiers
-        // that are related to this menu item.
-
-        // We need to find the original menu item to get relatedModifierIds
-        // Since we don't have it easily, we might need to rely on what was previously fetched or fetch again.
-        // A robust way: store related modifiers in the cart item or just store the IDs.
+        // Ideally, we should store related modifiers on the cart item or just store the IDs.
 
         // Workaround: Find the item in the menu
         let originalItem: any = null;
@@ -388,18 +405,35 @@ export default function CustomerMenuPage() {
                 }))
             }));
 
-            const orderId = await createOrder({
-                restaurantId: menu.restaurant._id,
-                tableNumber: tableNumber,
-                items
+            // Use Secure API Route
+            const response = await fetch('/api/orders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    restaurantId: menu.restaurant._id,
+                    tableNumber: tableNumber,
+                    items
+                })
             });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                // Handle specific errors
+                if (response.status === 429) {
+                    throw new Error(t("rate_limit_exceeded") || "Too many requests. Please wait a moment.");
+                }
+                throw new Error(data.error || t("failed_place_order"));
+            }
+
+            const orderId = data.orderId;
 
             setCart([]);
             setShowCart(false);
             setCurrentOrderId(orderId); // Start tracking
             setActiveOrderIds(prev => [...prev, orderId]); // Add to history
-        } catch (error) {
-            showToast(t("failed_place_order"), "error");
+        } catch (error: any) {
+            showToast(error.message, "error");
         }
     };
 
@@ -442,146 +476,41 @@ export default function CustomerMenuPage() {
         );
     }
 
-    if (currentOrderId && trackedOrder) {
-        const steps = [
-            { status: "pending", label: t("order_sent") || "Order Placed", icon: Clock },
-            { status: "preparing", label: t("chef_is_cooking") || "Preparing", icon: ChefHat },
-            { status: "ready", label: t("ready_to_serve") || "Ready!", icon: Bell },
-            { status: "served", label: t("bon_appetit") || "Bon Appétit", icon: Utensils },
-        ];
-
-        const currentStepIndex = steps.findIndex(s => s.status === trackedOrder.status);
-        // If status is 'paid', show served state or a thank you
-        const activeIndex = trackedOrder.status === 'paid' ? 3 : (currentStepIndex === -1 ? 0 : currentStepIndex);
-
+    // Security check: Manager offline
+    if (managerStatus && !managerStatus.isOnline) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-[#1a1a2e] p-6 text-center relative overflow-hidden">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#D4AF37_0%,_transparent_70%)] opacity-10" />
-
-                <div className="w-full max-w-md space-y-8 relative z-10">
-                    {/* Status Icon */}
-                    <div className="flex justify-center">
-                        <div className="w-32 h-32 bg-[#D4AF37]/10 rounded-full flex items-center justify-center border-2 border-[#D4AF37] animate-pulse">
-                            {(() => {
-                                const Icon = steps[activeIndex].icon;
-                                return <Icon className="w-16 h-16 text-[#D4AF37]" />;
-                            })()}
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <h1 className="text-3xl font-serif text-[#D4AF37] font-bold">
-                            {steps[activeIndex].label}
-                        </h1>
-                        <p className="text-[#f5f3f0]/80 font-light">
-                            {t("table_no")} {tableNumber} • Order #{currentOrderId.slice(-4)}
-                        </p>
-                    </div>
-
-                    {/* Stepper */}
-                    <div className="relative flex justify-between items-center px-4 mt-12">
-                        {/* Connecting Line */}
-                        <div className="absolute left-4 right-4 top-1/2 h-0.5 bg-gray-700 -z-10" />
-                        <div
-                            className="absolute left-4 top-1/2 h-0.5 bg-[#D4AF37] -z-10 transition-all duration-500"
-                            style={{ width: `${(activeIndex / (steps.length - 1)) * 100}%` }}
-                        />
-
-                        {steps.map((step, idx) => {
-                            const isCompleted = idx <= activeIndex;
-                            const isCurrent = idx === activeIndex;
-                            const Icon = step.icon;
-
-                            return (
-                                <div key={step.status} className="flex flex-col items-center gap-2 bg-[#1a1a2e] px-2">
-                                    <div className={`
-                                        w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300
-                                        ${isCompleted ? "bg-[#D4AF37] border-[#D4AF37] text-[#1a1a2e]" : "bg-[#1a1a2e] border-gray-600 text-gray-600"}
-                                        ${isCurrent ? "scale-125 shadow-[0_0_15px_rgba(212,175,55,0.5)]" : ""}
-                                    `}>
-                                        <Icon className="w-5 h-5" />
-                                    </div>
-                                    <span className={`text-[10px] font-bold uppercase tracking-wider ${isCompleted ? "text-[#D4AF37]" : "text-gray-600"}`}>
-                                        {getStatusLabel(step.status)}
-                                    </span>
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    {/* Order Details Preview */}
-                    <div className="bg-white/5 rounded-xl p-4 text-left border border-white/10 mt-8">
-                        <h3 className="text-[#D4AF37] text-sm font-bold uppercase tracking-wider mb-3 border-b border-white/10 pb-2">{t("your_order")}</h3>
-                        <div className="space-y-2 max-h-40 overflow-y-auto">
-                            {trackedOrder.items.map((item: any, idx: number) => (
-                                <div key={idx} className="flex flex-col text-sm text-[#f5f3f0] mb-2">
-                                    <div className="flex justify-between">
-                                        <span>{item.quantity}x {item.menuItem?.name}</span>
-                                        <span className="text-white/60">{"DA"} {(item.menuItem?.price * item.quantity).toFixed(2)}</span>
-                                    </div>
-                                    {item.notes && (
-                                        <span className="text-xs text-[#D4AF37] italic pl-4">Note: {item.notes}</span>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                        <div className="mt-3 pt-2 border-t border-white/10 flex justify-between text-[#D4AF37] font-bold">
-                            <span>{t("total_amount")}</span>
-                            <span>{"DA"} {trackedOrder.totalAmount.toFixed(2)}</span>
-                        </div>
-                    </div>
-
-                    <div className="flex gap-3">
-                        <Button
-                            onClick={() => setShowWaiterDialog(true)}
-                            variant="ghost"
-                            className="flex-1 border border-[#D4AF37]/30 text-[#D4AF37] hover:bg-[#D4AF37]/10"
-                        >
-                            <BellRing className="w-4 h-4 mr-2" />
-                            {t("call_waiter")}
-                        </Button>
-                        <Button
-                            onClick={() => {
-                                setCurrentOrderId(null);
-                            }}
-                            variant="outline"
-                            className="flex-1 border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37] hover:text-[#1a1a2e]"
-                        >
-                            {t("start_new_order")}
-                        </Button>
-                    </div>
+            <div className="min-h-screen flex items-center justify-center bg-[#f5f3f0] p-6 text-center">
+                <div className="max-w-md space-y-4">
+                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto text-3xl">🔒</div>
+                    <h1 className="text-2xl font-serif font-bold text-[#1a1a2e]">{t("restaurant_closed") || "Restaurant Closed"}</h1>
+                    <p className="text-gray-600">
+                        {managerStatus.reason || t("manager_offline_msg") || "We are currently not accepting orders. Please check back later or ask a waiter."}
+                    </p>
                 </div>
-
-                {/* Re-use Waiter Modal inside Success View */}
-                <Modal
-                    isOpen={showWaiterDialog}
-                    onClose={() => setShowWaiterDialog(false)}
-                    title={t("concierge_service")}
-                >
-                    <div className="grid grid-cols-1 gap-4">
-                        <button
-                            onClick={() => handleCallWaiter("bill")}
-                            className="flex items-center gap-4 p-5 rounded-2xl bg-[#f5f3f0] border border-transparent hover:border-[#D4AF37] hover:bg-white hover:shadow-lg transition-all group"
-                        >
-                            <span className="text-3xl group-hover:scale-110 transition-transform">💳</span>
-                            <div className={`text-left ${direction === 'rtl' ? 'text-right' : ''}`}>
-                                <div className="font-serif font-bold text-[#1a1a2e]">{t("request_bill")}</div>
-                                <div className="text-xs text-gray-500">{t("ready_to_settle")}</div>
-                            </div>
-                        </button>
-                        <button
-                            onClick={() => handleCallWaiter("help")}
-                            className="flex items-center gap-4 p-5 rounded-2xl bg-[#f5f3f0] border border-transparent hover:border-[#D4AF37] hover:bg-white hover:shadow-lg transition-all group"
-                        >
-                            <span className="text-3xl group-hover:scale-110 transition-transform">🛎️</span>
-                            <div className={`text-left ${direction === 'rtl' ? 'text-right' : ''}`}>
-                                <div className="font-serif font-bold text-[#1a1a2e]">{t("call_server")}</div>
-                                <div className="text-xs text-gray-500">{t("general_assistance")}</div>
-                            </div>
-                        </button>
-                    </div>
-                </Modal>
             </div>
+        );
+    }
+
+    // Loading state for order tracking
+    if (currentOrderId && !trackedOrder) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#1a1a2e]">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
+                    <p className="text-[#D4AF37] font-serif">{t("loading_status") || "Loading Status..."}</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (currentOrderId && trackedOrder) {
+        return (
+            <OrderStatus
+                order={trackedOrder}
+                tableNumber={tableNumber}
+                restaurantId={menu.restaurant._id}
+                onStartNewOrder={() => setCurrentOrderId(null)}
+            />
         );
     }
 
@@ -770,10 +699,11 @@ export default function CustomerMenuPage() {
 
             {/* Floating Status Pill (only if cart is empty and we have active orders) */}
             {cart.length === 0 && activeOrders && activeOrders.length > 0 && (
-                <div className="fixed bottom-6 left-4 right-4 z-30 max-w-2xl mx-auto flex justify-end">
+                <div className="fixed bottom-6 left-4 right-4 z-50 max-w-2xl mx-auto flex justify-end">
                     <button
                         onClick={() => setCurrentOrderId(activeOrders[activeOrders.length - 1]?._id)}
                         className="bg-[#1a1a2e] text-[#D4AF37] px-4 py-3 rounded-full shadow-xl border border-[#D4AF37]/30 flex items-center gap-3 hover:scale-105 transition-transform animate-bounce-slow"
+                        style={{ zIndex: 9999 }}
                     >
                         <Clock className="w-5 h-5" />
                         <div className="flex flex-col items-start">

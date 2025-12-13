@@ -81,6 +81,13 @@ export default function AdminDashboard() {
                             <span>${item.quantity}x ${item.menuItem?.name || 'Unknown Item'}</span>
                             <span>${restaurant.currency} ${(item.menuItem?.price * item.quantity).toFixed(2)}</span>
                         </div>
+                        ${item.modifiers ? item.modifiers.map((mod: any) => `
+                            <div class="item" style="font-size: 12px; color: #555; padding-left: 20px; margin: 4px 0;">
+                                <span>+ ${mod.name || "Extra"} (x${mod.quantity})</span>
+                                <span>${mod.price > 0 ? `${restaurant.currency} ${(mod.price * mod.quantity).toFixed(2)}` : ''}</span>
+                            </div>
+                        `).join('') : ''}
+                        ${item.notes ? `<div style="font-size: 12px; color: #555; padding-left: 20px; font-style: italic;">Note: ${item.notes}</div>` : ''}
                     `).join('')}
                 </div>
                 <div class="total">
@@ -161,14 +168,35 @@ export default function AdminDashboard() {
 
                                 <div className="space-y-3">
                                     {order.items.map((item: any, idx: number) => (
-                                        <div key={idx} className="flex justify-between text-sm">
-                                            <div className="flex items-start gap-2">
-                                                <span className="font-medium text-gray-900">{item.quantity}x</span>
-                                                <span className="text-gray-700">{item.menuItem?.name || "Unknown Item"}</span>
+                                        <div key={idx} className="flex flex-col text-sm border-b border-gray-100 last:border-0 pb-2 last:pb-0">
+                                            <div className="flex justify-between">
+                                                <div className="flex items-start gap-2">
+                                                    <span className="font-medium text-gray-900">{item.quantity}x</span>
+                                                    <span className="text-gray-700">{item.menuItem?.name || "Unknown Item"}</span>
+                                                </div>
+                                                <span className="text-gray-900">
+                                                    {restaurant.currency} {(item.menuItem?.price * item.quantity).toFixed(2)}
+                                                </span>
                                             </div>
-                                            <span className="text-gray-900">
-                                                {restaurant.currency} {(item.menuItem?.price * item.quantity).toFixed(2)}
-                                            </span>
+                                            {/* Modifiers */}
+                                            {item.modifiers && item.modifiers.length > 0 && (
+                                                <div className="pl-6 text-xs text-gray-500 mt-1 space-y-1">
+                                                    {item.modifiers.map((mod: any, mIdx: number) => (
+                                                        <div key={mIdx} className="flex justify-between">
+                                                            <span>+ {mod.name || "Extra"} (x{mod.quantity})</span>
+                                                            {mod.price > 0 && (
+                                                                <span>{restaurant.currency} {(mod.price * mod.quantity).toFixed(2)}</span>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            {/* Notes */}
+                                            {item.notes && (
+                                                <p className="pl-6 text-xs text-orange-600 italic mt-1">
+                                                    Note: {item.notes}
+                                                </p>
+                                            )}
                                         </div>
                                     ))}
                                 </div>

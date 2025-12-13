@@ -136,6 +136,16 @@ export const getRestaurantsByOwner = query({
   },
 });
 
+export const getRestaurantByOwner = query({
+  args: { ownerId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("restaurants")
+      .withIndex("by_owner", (q) => q.eq("ownerId", args.ownerId))
+      .first();
+  },
+});
+
 export const createRestaurant = mutation({
   args: {
     name: v.string(),

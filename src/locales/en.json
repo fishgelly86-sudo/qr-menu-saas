@@ -49,5 +49,9 @@
     "edit_extras": "Edit Extras",
     "add_extras": "Add Extras",
     "quantity": "Quantity",
-    "extras": "Extras"
+    "extras": "Extras",
+    "rate_limit_exceeded": "Too many requests. Please wait a moment.",
+    "restaurant_closed": "Restaurant Closed",
+    "manager_offline_msg": "We are currently not accepting orders. Please check back later or ask a waiter.",
+    "loading_status": "Loading Status..."
 }

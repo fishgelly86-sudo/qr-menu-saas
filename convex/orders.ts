@@ -17,6 +17,23 @@ export const createOrder = mutation({
     customerId: v.optional(v.id("customers")),
   },
   handler: async (ctx, args) => {
+    // SECURITY CHECKS
+    // SECURITY CHECKS
+    // SECURITY CHECKS
+    // 1. Check Manager Online Status
+    const managers = await ctx.db
+      .query("managers")
+      .withIndex("by_restaurant", (q) => q.eq("restaurantId", args.restaurantId))
+      .collect();
+
+    const now = Date.now();
+    const isOnline = managers.some(m => m.isOnline && m.sessionExpiresAt > now);
+
+    // Optional: Add strict time check (e.g. 8 AM) if needed, but managing status via "isOnline" implies manual control + session
+    if (!isOnline) {
+      throw new Error("Restaurant is currently closed. Please ask a waiter for assistance.");
+    }
+
     // Look up table by restaurantId and tableNumber
     const existingTable = await ctx.db
       .query("tables")
@@ -72,6 +89,14 @@ export const createOrder = mutation({
     const addedAt = Date.now();
 
     for (const item of args.items) {
+      // Security 2: Input Validation
+      if (item.quantity < 1 || item.quantity > 999) {
+        throw new Error("Invalid quantity (1-999).");
+      }
+      if (item.notes && item.notes.length > 500) {
+        throw new Error("Notes max length exceeded (500 chars).");
+      }
+
       // Try to get menu item
       const dbItem = await ctx.db.get(item.menuItemId as any);
 
@@ -173,9 +198,25 @@ export const getOrdersByRestaurant = query({
         const itemsWithDetails = await Promise.all(
           orderItems.map(async (orderItem) => {
             const menuItem = await ctx.db.get(orderItem.menuItemId as any);
+
+            let modifiersWithDetails = undefined;
+            if (orderItem.modifiers) {
+              modifiersWithDetails = await Promise.all(
+                orderItem.modifiers.map(async (mod) => {
+                  const modifier = await ctx.db.get(mod.modifierId as any) as any;
+                  return {
+                    ...mod,
+                    name: modifier?.name || "Unknown Extra",
+                    price: modifier?.price || 0
+                  };
+                })
+              );
+            }
+
             return {
               ...orderItem,
               menuItem,
+              modifiers: modifiersWithDetails || orderItem.modifiers,
             };
           })
         );
@@ -256,9 +297,25 @@ export const getOrdersByTable = query({
         const itemsWithDetails = await Promise.all(
           orderItems.map(async (orderItem) => {
             const menuItem = await ctx.db.get(orderItem.menuItemId as any);
+
+            let modifiersWithDetails = undefined;
+            if (orderItem.modifiers) {
+              modifiersWithDetails = await Promise.all(
+                orderItem.modifiers.map(async (mod) => {
+                  const modifier = await ctx.db.get(mod.modifierId as any) as any;
+                  return {
+                    ...mod,
+                    name: modifier?.name || "Unknown Extra",
+                    price: modifier?.price || 0
+                  };
+                })
+              );
+            }
+
             return {
               ...orderItem,
               menuItem,
+              modifiers: modifiersWithDetails || orderItem.modifiers,
             };
           })
         );
@@ -288,9 +345,25 @@ export const getOrder = query({
     const itemsWithDetails = await Promise.all(
       orderItems.map(async (orderItem) => {
         const menuItem = await ctx.db.get(orderItem.menuItemId as any);
+
+        let modifiersWithDetails = undefined;
+        if (orderItem.modifiers) {
+          modifiersWithDetails = await Promise.all(
+            orderItem.modifiers.map(async (mod) => {
+              const modifier = await ctx.db.get(mod.modifierId as any) as any;
+              return {
+                ...mod,
+                name: modifier?.name || "Unknown Extra",
+                price: modifier?.price || 0
+              };
+            })
+          );
+        }
+
         return {
           ...orderItem,
           menuItem,
+          modifiers: modifiersWithDetails || orderItem.modifiers,
         };
       })
     );
@@ -318,9 +391,25 @@ export const getOrdersByIds = query({
         const itemsWithDetails = await Promise.all(
           orderItems.map(async (orderItem) => {
             const menuItem = await ctx.db.get(orderItem.menuItemId as any);
+
+            let modifiersWithDetails = undefined;
+            if (orderItem.modifiers) {
+              modifiersWithDetails = await Promise.all(
+                orderItem.modifiers.map(async (mod) => {
+                  const modifier = await ctx.db.get(mod.modifierId as any) as any;
+                  return {
+                    ...mod,
+                    name: modifier?.name || "Unknown Extra",
+                    price: modifier?.price || 0
+                  };
+                })
+              );
+            }
+
             return {
               ...orderItem,
               menuItem,
+              modifiers: modifiersWithDetails || orderItem.modifiers,
             };
           })
         );
