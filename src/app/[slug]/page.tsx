@@ -155,12 +155,11 @@ export default function CustomerMenuPage() {
     // Handle back gesture navigation for modals
     useEffect(() => {
         const handlePopState = (event: PopStateEvent) => {
-            if (event.state?.modal) {
-                // Close whichever modal is open
-                setSelectedItem(null);
-                setShowUpsellModal(false);
-                setShowCart(false);
-            }
+            // When we go back, the state will likely be null (or not have 'modal').
+            // We should close all modals on any history navigation (back button).
+            setSelectedItem(null);
+            setShowUpsellModal(false);
+            setShowCart(false);
         };
 
         window.addEventListener('popstate', handlePopState);
@@ -173,6 +172,7 @@ export default function CustomerMenuPage() {
 
         if (hasModalOpen) {
             // Only push if we haven't already pushed for this modal state
+            // Check specifically for our modal flag to avoid pushing multiple times
             if (!window.history.state?.modal) {
                 window.history.pushState({ modal: true }, '');
             }
