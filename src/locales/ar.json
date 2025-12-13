@@ -49,5 +49,11 @@
     "edit_extras": "تعديل الإضافات",
     "add_extras": "إضافة إضافات",
     "quantity": "الكمية",
-    "extras": "إضافات"
+    "extras": "إضافات",
+    "rate_limit_exceeded": "تم تجاوز حد الطلبات. يرجى الانتظار قليلاً.",
+    "restaurant_closed": "المطعم مغلق",
+    "manager_offline_msg": "لا نستقبل طلبات حالياً. يرجى المراجعة لاحقاً.",
+    "loading_status": "جاري تحميل الحالة...",
+    "order_validation_error": "بيانات الطلب غير صالحة.",
+    "manager_login_required": "تطمين تسجيل دخول المدير مطلوب."
 }
