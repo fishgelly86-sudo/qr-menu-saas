@@ -51,47 +51,40 @@ export async function checkRateLimit(
             expiresAt: now + windowMs,
         });
     }
+}
 
-    /**
-     * Super Admin Claim
-     * Allows a user to claim super admin privileges using a secret key
-     */
-    export const claimSuperAdmin = mutation({
-        args: {
-            secretKey: v.string(),
-        },
-        handler: async (ctx, args) => {
-            const identity = await ctx.auth.getUserIdentity();
-            if (!identity) {
-                throw new Error("Unauthorized: Please log in first");
-            }
+/**
+ * Super Admin Claim
+ * Validates the super admin secret key
+ * Note: This doesn't modify the user record. The frontend should store
+ * the validation result to maintain super admin status in the session.
+ */
+export const claimSuperAdmin = mutation({
+    args: {
+        secretKey: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) {
+            throw new Error("Unauthorized: Please log in first");
+        }
 
-            // Check against environment variable
-            // Set SUPER_ADMIN_SECRET in your Convex dashboard environment variables
-            const expectedSecret = process.env.SUPER_ADMIN_SECRET;
-            if (!expectedSecret) {
-                throw new Error("Super admin secret not configured");
-            }
+        // Check against environment variable
+        // Set SUPER_ADMIN_SECRET in your Convex dashboard environment variables
+        const expectedSecret = process.env.SUPER_ADMIN_SECRET;
+        if (!expectedSecret) {
+            throw new Error("Super admin secret not configured");
+        }
 
-            if (args.secretKey !== expectedSecret) {
-                throw new Error("Invalid secret key");
-            }
+        if (args.secretKey !== expectedSecret) {
+            throw new Error("Invalid secret key");
+        }
 
-            // Find user by token identifier
-            const user = await ctx.db
-                .query("users")
-                .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-                .first();
-
-            if (!user) {
-                throw new Error("User not found");
-            }
-
-            // Update user role to super_admin
-            await ctx.db.patch(user._id, {
-                role: "super_admin"
-            });
-
-            return { success: true, message: "Super admin privileges granted" };
-        },
-    });
+        // Secret is valid - return success
+        return {
+            success: true,
+            message: "Super admin access granted",
+            userId: identity.subject
+        };
+    },
+});
