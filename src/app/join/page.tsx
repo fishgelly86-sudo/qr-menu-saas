@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useAuthActions } from "@convex-dev/auth/react";
 
-export default function JoinPage() {
+// Internal component that uses useSearchParams
+function JoinContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { signIn } = useAuthActions();
@@ -187,5 +188,18 @@ export default function JoinPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+// Main page component with Suspense boundary
+export default function JoinPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+                <div className="text-white text-lg">Loading...</div>
+            </div>
+        }>
+            <JoinContent />
+        </Suspense>
     );
 }
