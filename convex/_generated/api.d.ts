@@ -33,6 +33,7 @@ import type * as seedData from "../seedData.js";
 import type * as staff from "../staff.js";
 import type * as staffList from "../staffList.js";
 import type * as subscriptions from "../subscriptions.js";
+import type * as superAdmin from "../superAdmin.js";
 import type * as tables from "../tables.js";
 import type * as updateCurrency from "../updateCurrency.js";
 import type * as utils from "../utils.js";
@@ -70,6 +71,7 @@ declare const fullApi: ApiFromModules<{
   staff: typeof staff;
   staffList: typeof staffList;
   subscriptions: typeof subscriptions;
+  superAdmin: typeof superAdmin;
   tables: typeof tables;
   updateCurrency: typeof updateCurrency;
   utils: typeof utils;
