@@ -16,7 +16,7 @@ export default function SuperAdminClaimPage() {
     const handleClaim = async () => {
         try {
             setStatus("Claiming...");
-            const result = await claimSuperAdmin({ secret });
+            const result = await claimSuperAdmin({ secretKey: secret });
             setStatus(result.message);
             if (result.message.includes("successfully") || result.message.includes("Already")) {
                 setTimeout(() => router.push("/admin/super"), 1000);
