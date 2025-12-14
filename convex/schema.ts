@@ -6,13 +6,25 @@ const applicationTables = {
   restaurants: defineTable({
     name: v.string(),
     slug: v.string(),
-    ownerId: v.string(), // clerkId
+    ownerId: v.string(), // auth userId
     currency: v.string(),
     logoUrl: v.optional(v.string()),
     settings: v.object({
       allowSplitBill: v.boolean(),
       autoUpsell: v.boolean(),
     }),
+    // Subscription fields (optional for backward compatibility with existing data)
+    subscriptionStatus: v.optional(v.union(
+      v.literal("active"),
+      v.literal("suspended"),
+      v.literal("trial")
+    )),
+    subscriptionExpiresAt: v.optional(v.number()),
+    plan: v.optional(v.union(v.literal("basic"), v.literal("pro"))),
+    // Manual Auth Fields
+    ownerEmail: v.optional(v.string()),
+    passwordHash: v.optional(v.string()),
+    isAcceptingOrders: v.optional(v.boolean()),
   }).index("by_slug", ["slug"])
     .index("by_owner", ["ownerId"]),
 
@@ -136,6 +148,44 @@ const applicationTables = {
     isActive: v.boolean(),
   }).index("by_code", ["code"])
     .index("by_restaurant", ["restaurantId"]),
+
+  // Staff invite system
+  invites: defineTable({
+    token: v.string(),
+    restaurantId: v.id("restaurants"),
+    email: v.string(),
+    role: v.union(v.literal("manager"), v.literal("waiter")),
+    expiresAt: v.number(),
+    status: v.union(v.literal("pending"), v.literal("used")),
+    createdBy: v.string(), // userId who created the invite
+  }).index("by_token", ["token"])
+    .index("by_restaurant", ["restaurantId"])
+    .index("by_email", ["email"]),
+
+  // Staff/User roles (links Convex Auth users to restaurants)
+  staff: defineTable({
+    userId: v.string(), // Convex Auth user ID
+    restaurantId: v.id("restaurants"),
+    role: v.union(
+      v.literal("owner"),
+      v.literal("manager"),
+      v.literal("waiter")
+    ),
+    isActive: v.boolean(),
+    email: v.string(),
+    name: v.optional(v.string()),
+  }).index("by_user", ["userId"])
+    .index("by_restaurant", ["restaurantId"])
+    .index("by_email", ["email"]),
+
+  // Security Tables
+  rate_limits: defineTable({
+    identifier: v.string(), // IP or userId
+    action: v.string(), // e.g. "create_order"
+    count: v.number(),
+    expiresAt: v.number(),
+  }).index("by_identifier_action", ["identifier", "action"]),
+
 };
 
 export default defineSchema({

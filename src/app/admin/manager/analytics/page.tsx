@@ -72,8 +72,8 @@ export default function AnalyticsPage() {
                 </div>
             </header>
 
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* KPI Cards Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Sales Today</h3>
@@ -100,69 +100,103 @@ export default function AnalyticsPage() {
                         Avg. Order: {restaurant.currency} {(stats.totalRevenue / (stats.totalOrders || 1)).toFixed(2)}
                     </p>
                 </div>
+            </div>
 
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            {/* Lists Row: Items & Extras */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Items List */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 border-t-4 border-t-emerald-500">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Most Picked Item</h3>
+                        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Top Selling Items</h3>
                         <div className="p-2 bg-emerald-100 rounded-lg">
                             <Star className="w-5 h-5 text-emerald-600" />
                         </div>
                     </div>
-                    {stats.mostPickedItem ? (
-                        <div>
-                            <div className="flex items-center gap-4 mb-2">
-                                {stats.mostPickedItem.imageUrl && (
-                                    <img
-                                        src={stats.mostPickedItem.imageUrl}
-                                        alt={stats.mostPickedItem.name}
-                                        className="w-12 h-12 rounded-lg object-cover"
-                                    />
-                                )}
-                                <div>
-                                    <div className="text-lg font-bold text-gray-900">
-                                        {stats.mostPickedItem.name}
+
+                    <div className="space-y-4 max-h-80 overflow-y-auto pr-2">
+                        {stats.popularItems && stats.popularItems.length > 0 ? (
+                            stats.popularItems.map((item: any, idx: number) => (
+                                <div key={idx} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <div className="font-bold text-gray-400 w-4">#{idx + 1}</div>
+                                        {item.imageUrl && (
+                                            <img
+                                                src={item.imageUrl}
+                                                alt={item.name}
+                                                className="w-10 h-10 rounded-md object-cover border border-gray-100"
+                                            />
+                                        )}
+                                        <div>
+                                            <div className="font-medium text-gray-900 line-clamp-1">{item.name}</div>
+                                            <div className="text-xs text-gray-500">{item.count} sold</div>
+                                        </div>
                                     </div>
-                                    <div className="text-sm text-gray-500">
-                                        {stats.mostPickedItem.count} orders
+                                    <div className="text-sm font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
+                                        {restaurant.currency} {item.revenue.toFixed(2)}
                                     </div>
                                 </div>
-                            </div>
-                            <p className="text-sm text-emerald-600 font-medium">
-                                {restaurant.currency} {stats.mostPickedItem.revenue.toFixed(2)} revenue
-                            </p>
+                            ))
+                        ) : (
+                            <div className="text-gray-400 italic text-center py-4">No item sales data yet</div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Modifiers List */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 border-t-4 border-t-amber-500">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Top Extras</h3>
+                        <div className="p-2 bg-amber-100 rounded-lg">
+                            <TrendingUp className="w-5 h-5 text-amber-600" />
                         </div>
-                    ) : (
-                        <div className="text-gray-400 italic">No data yet</div>
-                    )}
+                    </div>
+
+                    <div className="space-y-4 max-h-80 overflow-y-auto pr-2">
+                        {stats.popularModifiers && stats.popularModifiers.length > 0 ? (
+                            stats.popularModifiers.map((item: any, idx: number) => (
+                                <div key={idx} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <div className="font-bold text-gray-400 w-4">#{idx + 1}</div>
+                                        <div>
+                                            <div className="font-medium text-gray-900 line-clamp-1">{item.name}</div>
+                                            <div className="text-xs text-gray-500">{item.count} sold</div>
+                                        </div>
+                                    </div>
+                                    <div className="text-sm font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                                        {restaurant.currency} {item.revenue.toFixed(2)}
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="text-gray-400 italic text-center py-4">No extras sales data yet</div>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            {/* Charts Row */}
-            <div className="grid grid-cols-1">
-                {/* Revenue by Category */}
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                    <h3 className="text-lg font-bold text-gray-900 mb-6 text-center">Revenue by Category</h3>
-                    <div className="h-96">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={stats.revenueByCategory}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={80}
-                                    outerRadius={120}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                >
-                                    {stats.revenueByCategory?.map((entry: any, index: number) => (
-                                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                                    ))}
-                                </Pie>
-                                <Tooltip formatter={(value: number) => [`${restaurant.currency} ${value.toFixed(2)}`, 'Revenue']} />
-                                <Legend />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </div>
+            {/* Revenue Chart */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <h3 className="text-lg font-bold text-gray-900 mb-6 text-center">Revenue by Category</h3>
+                <div className="h-96">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                            <Pie
+                                data={stats.revenueByCategory}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={80}
+                                outerRadius={120}
+                                paddingAngle={5}
+                                dataKey="value"
+                            >
+                                {stats.revenueByCategory?.map((entry: any, index: number) => (
+                                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                                ))}
+                            </Pie>
+                            <Tooltip formatter={(value: number) => [`${restaurant.currency} ${value.toFixed(2)}`, 'Revenue']} />
+                            <Legend />
+                        </PieChart>
+                    </ResponsiveContainer>
                 </div>
             </div>
         </div>

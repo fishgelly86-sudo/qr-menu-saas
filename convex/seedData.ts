@@ -1,5 +1,50 @@
-import { mutation } from "./_generated/server";
+import { internalMutation, mutation, action } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
+
+export const setDefaults = action({
+  args: {},
+  handler: async (ctx) => {
+    const slug = "burger-bistro";
+    const password = "password123";
+    const ownerEmail = "manager@burgerbistro.com";
+
+    // Plain text password for dev/mvp
+    const hash = password;
+
+    await ctx.runMutation(internal.seedData.updateSearchResult, {
+      slug,
+      passwordHash: hash,
+      ownerEmail,
+    });
+
+    return `Updated ${slug} with password: ${password} `;
+  },
+});
+
+export const updateSearchResult = internalMutation({
+  args: {
+    slug: v.string(),
+    passwordHash: v.string(),
+    ownerEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const restaurant = await ctx.db
+      .query("restaurants")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .unique();
+
+    if (!restaurant) {
+      // Create if missing? For now error
+      throw new Error(`Restaurant ${args.slug} not found`);
+    }
+
+    await ctx.db.patch(restaurant._id, {
+      passwordHash: args.passwordHash,
+      ownerEmail: args.ownerEmail,
+    });
+  },
+});
 
 export const seedDemoData = mutation({
   args: {},
@@ -25,6 +70,9 @@ export const seedDemoData = mutation({
         allowSplitBill: true,
         autoUpsell: true,
       },
+      subscriptionStatus: "active",
+      plan: "pro",
+      subscriptionExpiresAt: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year
     });
 
     // Create categories

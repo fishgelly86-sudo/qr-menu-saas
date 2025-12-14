@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getUserId, requireRestaurantManager, requireRestaurantOwner } from "./utils";
 
 export const getMenu = query({
   args: { restaurantSlug: v.string() },
@@ -71,6 +72,9 @@ export const getAdminMenu = query({
       .unique();
 
     if (!restaurant) throw new Error("Restaurant not found");
+
+    // Auth check
+    await requireRestaurantManager(ctx, restaurant._id);
 
     const categories = await ctx.db
       .query("categories")
@@ -169,7 +173,18 @@ export const createRestaurant = mutation({
       throw new Error("Restaurant slug already exists");
     }
 
-    return await ctx.db.insert("restaurants", args);
+    const userId = await getUserId(ctx);
+
+    // Default to trial mode with 14-day trial period
+    const trialExpiresAt = Date.now() + 14 * 24 * 60 * 60 * 1000;
+
+    return await ctx.db.insert("restaurants", {
+      ...args,
+      ownerId: userId, // Force ownerId to be the authenticated user
+      subscriptionStatus: "trial",
+      subscriptionExpiresAt: trialExpiresAt,
+      plan: "basic",
+    });
   },
 });
 
@@ -182,6 +197,9 @@ export const getTrashItems = query({
       .unique();
 
     if (!restaurant) throw new Error("Restaurant not found");
+
+    // Authorization check DISABLED as per user request
+    // await requireRestaurantManager(ctx, restaurant._id);
 
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
 
@@ -199,5 +217,44 @@ export const getTrashItems = query({
       categories: deletedCategories.filter(cat => cat.deletedAt && cat.deletedAt > oneDayAgo),
       items: deletedMenuItems.filter(item => item.deletedAt && item.deletedAt > oneDayAgo),
     };
+  },
+});
+
+export const getMyRestaurant = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getUserId(ctx);
+
+    // 1. Check if owner
+    const owned = await ctx.db
+      .query("restaurants")
+      .withIndex("by_owner", (q) => q.eq("ownerId", userId))
+      .first();
+
+    if (owned) return owned;
+
+    // 2. Check if staff
+    const staff = await ctx.db
+      .query("staff")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+
+    if (staff && staff.isActive) {
+      return await ctx.db.get(staff.restaurantId);
+    }
+
+    return null;
+  },
+});
+
+export const updateRestaurant = mutation({
+  args: {
+    id: v.id("restaurants"),
+    isAcceptingOrders: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    await requireRestaurantManager(ctx, args.id);
+    const { id, ...fields } = args;
+    await ctx.db.patch(id, fields);
   },
 });

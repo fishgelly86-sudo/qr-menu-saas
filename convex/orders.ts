@@ -1,5 +1,7 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { requireRestaurantManager } from "./utils";
+import { checkRateLimit } from "./security";
 
 export const createOrder = mutation({
   args: {
@@ -18,20 +20,39 @@ export const createOrder = mutation({
   },
   handler: async (ctx, args) => {
     // SECURITY CHECKS
-    // SECURITY CHECKS
-    // SECURITY CHECKS
-    // 1. Check Manager Online Status
-    const managers = await ctx.db
-      .query("managers")
-      .withIndex("by_restaurant", (q) => q.eq("restaurantId", args.restaurantId))
-      .collect();
+    // 0. Rate Limiting
+    const clientIp = (ctx as any).clientIp || "unknown-ip";
+    // Note: clientIp might need to be passed from client or retrieved via specific Convex helper if available. 
+    // For now, we'll try to use a user identifier if logged in, or a fallback.
+    // Actually, Convex doesn't expose IP directly easily without custom actions. 
+    // We can use a combination of restaurantId and tableNumber as a throttle key OR a user ID if present.
 
-    const now = Date.now();
-    const isOnline = managers.some(m => m.isOnline && m.sessionExpiresAt > now);
+    // Better approach: Throttle by Table Number to prevent table spam
+    await checkRateLimit(ctx, `order_creation:${args.restaurantId}:${args.tableNumber}`, "create_order", 5, 60 * 1000); // 5 orders per minute per table
+    // 1. Check Restaurant Status (Toggle)
+    const restaurant = await ctx.db.get(args.restaurantId);
+    if (restaurant) {
+      if (restaurant.isAcceptingOrders === false) {
+        throw new Error("Restaurant is currently closed.");
+      }
+      if (restaurant.isAcceptingOrders === true) {
+        // Restaurant is explicitly open, skip manager check
+      } else {
+        // Fallback to legacy Manager Online check
+        const managers = await ctx.db
+          .query("managers")
+          .withIndex("by_restaurant", (q) => q.eq("restaurantId", args.restaurantId))
+          .collect();
 
-    // Optional: Add strict time check (e.g. 8 AM) if needed, but managing status via "isOnline" implies manual control + session
-    if (!isOnline) {
-      throw new Error("Restaurant is currently closed. Please ask a waiter for assistance.");
+        const now = Date.now();
+        const isOnline = managers.some(m => m.isOnline && m.sessionExpiresAt > now);
+
+        if (!isOnline) {
+          throw new Error("Restaurant is currently closed. Please ask a waiter for assistance.");
+        }
+      }
+    } else {
+      throw new Error("Restaurant not found");
     }
 
     // Look up table by restaurantId and tableNumber
@@ -251,6 +272,8 @@ export const updateOrderStatus = mutation({
       throw new Error("Order not found");
     }
 
+    await requireRestaurantManager(ctx, order.restaurantId);
+
     await ctx.db.patch(args.orderId, { status: args.status });
 
     // If order is paid or cancelled, update table status to free/dirty
@@ -270,6 +293,8 @@ export const cancelOrder = mutation({
   handler: async (ctx, args) => {
     const order = await ctx.db.get(args.orderId);
     if (!order) throw new Error("Order not found");
+
+    await requireRestaurantManager(ctx, order.restaurantId);
 
     await ctx.db.patch(args.orderId, { status: "cancelled" });
 

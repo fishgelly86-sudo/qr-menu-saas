@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useState, useEffect } from "react";
 import { Plus, Edit, Trash2, Eye, EyeOff, Save, X, Image as ImageIcon, ChevronDown } from "lucide-react";
@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/Input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/Accordion";
 import { useToast } from "@/components/ui/Toast";
 import { ImageUpload } from "@/components/ui/ImageUpload";
-import { useAction } from "convex/react";
 
 function AdminItemImage({ item }: { item: any }) {
     const getImageUrl = useAction(api.files.getImageUrl);
@@ -38,10 +37,19 @@ function AdminItemImage({ item }: { item: any }) {
     return <Image src={url} alt={item.name} fill className="object-cover" />;
 }
 
+// Debug and Claim components removed as per user request to simplify.
+
 export default function MenuManager() {
-    const restaurantSlug = "burger-bistro"; // Hardcoded for demo
-    const menu = useQuery(api.restaurants.getMenu, { restaurantSlug });
-    const trash = useQuery(api.restaurants.getTrashItems, { restaurantSlug });
+    const restaurant = useQuery(api.restaurants.getMyRestaurant);
+
+    const restaurantSlug = restaurant?.slug ?? (restaurant === null ? "burger-bistro" : undefined);
+
+    // If restaurant is loading (undefined), we wait.
+    // If restaurant is null, we used fallback "burger-bistro", so slug is "burger-bistro".
+    // If restaurant is found, we use its slug.
+
+    const menu = useQuery(api.restaurants.getMenu, restaurantSlug ? { restaurantSlug } : "skip");
+    const trash = useQuery(api.restaurants.getTrashItems, restaurantSlug ? { restaurantSlug } : "skip");
 
     const updateItem = useMutation(api.menuItems.updateMenuItem);
     const createItem = useMutation(api.menuItems.createMenuItem);
@@ -82,9 +90,7 @@ export default function MenuManager() {
         relatedModifiers: [] as string[]
     });
 
-    if (!menu) {
-        return <div className="p-8 text-center">Loading menu...</div>;
-    }
+    if (menu === undefined) return <div className="p-8 text-center text-gray-500">Loading menu...</div>;
 
     const handleEditClick = (item: any) => {
         setEditingItem(item);

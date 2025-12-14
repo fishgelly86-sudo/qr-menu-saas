@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 
 export const getDashboardStats = query({
+    // Aggregates dashboard statistics including top items and category revenue
     args: {
         restaurantId: v.id("restaurants"),
         startTime: v.optional(v.number()),
@@ -57,6 +58,13 @@ export const getDashboardStats = query({
             .collect();
         const menuItemMap = new Map(menuItems.map(item => [item._id, item]));
 
+        // 2a. Get all modifiers
+        const modifiers = await ctx.db.query("modifiers")
+            .withIndex("by_restaurant", q => q.eq("restaurantId", args.restaurantId))
+            .collect();
+        const modifierMap = new Map(modifiers.map(mod => [mod._id, mod]));
+
+        // 2b. Get all categories
         const categories = await ctx.db.query("categories")
             .withIndex("by_restaurant", q => q.eq("restaurantId", args.restaurantId))
             .collect();
@@ -70,9 +78,23 @@ export const getDashboardStats = query({
             const menuItem = menuItemMap.get(item.menuItemId as any);
             if (menuItem) {
                 const catName = categoryMap.get(menuItem.categoryId) || "Uncategorized";
-                const revenue = menuItem.price * item.quantity;
-                categoryRevenue[catName] = (categoryRevenue[catName] || 0) + revenue;
-                totalCategoryRevenue += revenue;
+                // Main item revenue
+                const itemRevenue = menuItem.price * item.quantity;
+                categoryRevenue[catName] = (categoryRevenue[catName] || 0) + itemRevenue;
+                totalCategoryRevenue += itemRevenue;
+
+                // Modifiers revenue (add to same category as parent item?)
+                // Usually modifiers are considered part of the item's category revenue
+                if (item.modifiers) {
+                    for (const mod of item.modifiers) {
+                        const modifier = modifierMap.get(mod.modifierId as any);
+                        if (modifier) {
+                            const modRevenue = modifier.price * mod.quantity * item.quantity;
+                            categoryRevenue[catName] = (categoryRevenue[catName] || 0) + modRevenue;
+                            totalCategoryRevenue += modRevenue;
+                        }
+                    }
+                }
             }
         }
 
@@ -88,39 +110,67 @@ export const getDashboardStats = query({
             }))
             .sort((a, b) => b.value - a.value);
 
-        // 5. Calculate Most Picked Item
-        const itemStats: Record<string, { count: number; revenue: number; menuItemId: string }> = {};
+        // 5. Calculate Most Picked Item (including Modifiers)
+        const itemStats: Record<string, { count: number; revenue: number; id: string; type: 'item' | 'modifier' }> = {};
 
         for (const item of allOrderItems) {
-            const stats = itemStats[item.menuItemId] || { count: 0, revenue: 0, menuItemId: item.menuItemId };
+            // Main Item Stats
+            const stats = itemStats[item.menuItemId] || { count: 0, revenue: 0, id: item.menuItemId, type: 'item' };
             const menuItem = menuItemMap.get(item.menuItemId as any);
             if (menuItem) {
                 stats.count += item.quantity;
                 stats.revenue += item.quantity * menuItem.price;
                 itemStats[item.menuItemId] = stats;
             }
-        }
 
-        const mostPicked = Object.values(itemStats).sort((a, b) => b.count - a.count)[0];
-        let mostPickedItem = null;
-
-        if (mostPicked) {
-            const menuItem = menuItemMap.get(mostPicked.menuItemId as any);
-            if (menuItem) {
-                mostPickedItem = {
-                    name: menuItem.name,
-                    imageUrl: menuItem.imageUrl,
-                    count: mostPicked.count,
-                    revenue: mostPicked.revenue
-                };
+            // Modifier Stats
+            if (item.modifiers) {
+                for (const mod of item.modifiers) {
+                    const modStats = itemStats[mod.modifierId] || { count: 0, revenue: 0, id: mod.modifierId, type: 'modifier' };
+                    const modifier = modifierMap.get(mod.modifierId as any);
+                    if (modifier) {
+                        const count = mod.quantity * item.quantity;
+                        modStats.count += count;
+                        modStats.revenue += count * modifier.price;
+                        itemStats[mod.modifierId] = modStats;
+                    }
+                }
             }
         }
+
+        const popularItems = Object.values(itemStats)
+            .filter(stat => stat.type === 'item')
+            .map(stat => {
+                const menuItem = menuItemMap.get(stat.id as any);
+                return {
+                    name: menuItem?.name || "Unknown Item",
+                    imageUrl: menuItem?.imageUrl,
+                    count: stat.count,
+                    revenue: stat.revenue
+                };
+            })
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10); // Limit to top 10
+
+        const popularModifiers = Object.values(itemStats)
+            .filter(stat => stat.type === 'modifier')
+            .map(stat => {
+                const modifier = modifierMap.get(stat.id as any);
+                return {
+                    name: modifier?.name || "Unknown Extra",
+                    count: stat.count,
+                    revenue: stat.revenue
+                };
+            })
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10); // Limit to top 10
 
         return {
             totalRevenue,
             totalOrders,
             revenueByCategory,
-            mostPickedItem,
+            popularItems,
+            popularModifiers,
         };
     },
 });

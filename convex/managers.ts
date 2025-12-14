@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { requireRestaurantManager } from "./utils";
 
 export const setManagerStatus = mutation({
     args: {
@@ -8,6 +9,13 @@ export const setManagerStatus = mutation({
         isOnline: v.boolean(),
     },
     handler: async (ctx, args) => {
+        // Only require that user is logged in, not that they're already a manager
+        // This mutation is used to SET status, so we can't require manager status first
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) {
+            throw new Error("Unauthorized: Please log in.");
+        }
+
         const now = Date.now();
         // 2 hour session
         const sessionExpiresAt = now + 2 * 60 * 60 * 1000;
@@ -17,7 +25,15 @@ export const setManagerStatus = mutation({
         // For simplicity, if no email, we look for the most recent active manager for this restaurant to update.
 
         let existing = null;
-        if (args.email) {
+        const userEmail = identity.email || identity.tokenIdentifier || args.email;
+
+        if (userEmail) {
+            existing = await ctx.db
+                .query("managers")
+                .withIndex("by_email", (q) => q.eq("email", userEmail))
+                .filter((q) => q.eq(q.field("restaurantId"), args.restaurantId))
+                .first();
+        } else if (args.email) {
             existing = await ctx.db
                 .query("managers")
                 .withIndex("by_email", (q) => q.eq("email", args.email!))
@@ -43,10 +59,10 @@ export const setManagerStatus = mutation({
                 sessionExpiresAt: args.isOnline ? sessionExpiresAt : existing.sessionExpiresAt,
             });
         } else {
-            // Create a new manager record (default/fallback if no email provided)
+            // Create a new manager record using the authenticated user's email
             await ctx.db.insert("managers", {
                 restaurantId: args.restaurantId,
-                email: args.email || "default@admin.com", // Fallback email
+                email: userEmail || "unknown@user.com",
                 isOnline: args.isOnline,
                 lastSeenAt: now,
                 lastHeartbeat: now,
@@ -61,27 +77,22 @@ export const isManagerOnline = query({
         restaurantId: v.id("restaurants"),
     },
     handler: async (ctx, args) => {
+        // 1. Primary Check: Restaurant "Accepting Orders" Toggle
+        const restaurant = await ctx.db.get(args.restaurantId);
+        if (restaurant && restaurant.isAcceptingOrders === true) {
+            return { isOnline: true };
+        }
+        if (restaurant && restaurant.isAcceptingOrders === false) {
+            return { isOnline: false, reason: "Restaurant is currently closed." };
+        }
+
+        // 2. Fallback: Manager Heartbeat (Legacy/Auto-mode)
         const now = Date.now();
-
-        // TimeZone Fix: Algeria (UTC+1)
-        const algeriaTime = new Date(now + 1 * 60 * 60 * 1000); // Adding 1 hour in ms
-        const hour = algeriaTime.getUTCHours(); // Use getUTCHours because we added the offset manually to the timestamp to shift it
-
-        // Rule: Open between 8 AM and 2 AM (next day) ?? Or simple 8 AM start check?
-        // User mentioned "8 AM rule".
-        // Let's assume strict 8 AM to EOD.
-        // If hour < 8, strictly closed? Or just checking manager presence?
-        // User's previous request implies they want manager presence to override or be the source of truth.
-        // "Manager status check returns false even though admin is actively working" implies we trust the heartbeat.
-
-        // Check if ANY manager for this restaurant has a recent heartbeat (last 60s)
         const managers = await ctx.db
             .query("managers")
             .withIndex("by_restaurant", (q) => q.eq("restaurantId", args.restaurantId))
             .collect();
 
-        // Active if online AND (heartbeat within last 60s OR session valid)
-        // Heartbeat is more precise for "actively working".
         const onlineManager = managers.find(
             (m) => m.isOnline && (
                 (m.lastHeartbeat && (now - m.lastHeartbeat) < 60000) ||

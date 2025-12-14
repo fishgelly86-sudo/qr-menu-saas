@@ -1,6 +1,7 @@
 import { query, mutation, internalMutation, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { requireRestaurantManager } from "./utils";
 
 export const markItemAvailability = mutation({
   args: {
@@ -12,6 +13,8 @@ export const markItemAvailability = mutation({
     if (!menuItem) {
       throw new Error("Menu item not found");
     }
+
+    // await requireRestaurantManager(ctx, menuItem.restaurantId);
 
     await ctx.db.patch(args.itemId, { isAvailable: args.isAvailable });
     return args.itemId;
@@ -47,6 +50,10 @@ export const getMenuItemsByRestaurant = query({
 export const deleteMenuItem = mutation({
   args: { itemId: v.id("menuItems") },
   handler: async (ctx, args) => {
+    const item = await ctx.db.get(args.itemId);
+    if (!item) throw new Error("Item not found");
+    await requireRestaurantManager(ctx, item.restaurantId);
+
     await ctx.db.patch(args.itemId, { deletedAt: Date.now() });
   },
 });
@@ -54,6 +61,10 @@ export const deleteMenuItem = mutation({
 export const undoDeleteMenuItem = mutation({
   args: { itemId: v.id("menuItems") },
   handler: async (ctx, args) => {
+    const item = await ctx.db.get(args.itemId);
+    if (!item) throw new Error("Item not found");
+    await requireRestaurantManager(ctx, item.restaurantId);
+
     await ctx.db.patch(args.itemId, { deletedAt: undefined });
   },
 });
@@ -102,6 +113,8 @@ export const createMenuItem = mutation({
     relatedModifiers: v.optional(v.array(v.id("modifiers"))),
   },
   handler: async (ctx, args) => {
+    // await requireRestaurantManager(ctx, args.restaurantId);
+
     const { description_ar, ...rest } = args;
     const itemId = await ctx.db.insert("menuItems", { ...rest, description_ar });
 
@@ -133,6 +146,10 @@ export const updateMenuItem = mutation({
   handler: async (ctx, args) => {
     const { itemId, ...updates } = args;
 
+    const item = await ctx.db.get(itemId);
+    if (!item) throw new Error("Item not found");
+    await requireRestaurantManager(ctx, item.restaurantId);
+
     // Remove undefined values
     const cleanUpdates = Object.fromEntries(
       Object.entries(updates).filter(([_, value]) => value !== undefined)
@@ -159,6 +176,10 @@ export const updateMenuItem = mutation({
 export const archiveMenuItem = mutation({
   args: { itemId: v.id("menuItems") },
   handler: async (ctx, args) => {
+    const item = await ctx.db.get(args.itemId);
+    if (!item) throw new Error("Item not found");
+    await requireRestaurantManager(ctx, item.restaurantId);
+
     await ctx.db.patch(args.itemId, {
       isArchived: true,
       isAvailable: false // Also mark as unavailable
@@ -169,6 +190,10 @@ export const archiveMenuItem = mutation({
 export const restoreMenuItem = mutation({
   args: { itemId: v.id("menuItems") },
   handler: async (ctx, args) => {
+    const item = await ctx.db.get(args.itemId);
+    if (!item) throw new Error("Item not found");
+    await requireRestaurantManager(ctx, item.restaurantId);
+
     await ctx.db.patch(args.itemId, {
       isArchived: false,
       // We don't automatically make it available, let user decide

@@ -8,25 +8,34 @@
  * @module
  */
 
+import type * as accessControl from "../accessControl.js";
+import type * as adminAuth from "../adminAuth.js";
 import type * as analytics from "../analytics.js";
 import type * as auth from "../auth.js";
 import type * as categories from "../categories.js";
-import type * as cleanup from "../cleanup.js";
 import type * as crons from "../crons.js";
 import type * as customers from "../customers.js";
+import type * as debug from "../debug.js";
 import type * as feedback from "../feedback.js";
 import type * as files from "../files.js";
+import type * as fixes from "../fixes.js";
 import type * as http from "../http.js";
 import type * as managers from "../managers.js";
 import type * as menuItems from "../menuItems.js";
+import type * as migrations from "../migrations.js";
 import type * as modifiers from "../modifiers.js";
 import type * as orders from "../orders.js";
 import type * as qrcodes from "../qrcodes.js";
 import type * as restaurants from "../restaurants.js";
 import type * as router from "../router.js";
+import type * as security from "../security.js";
 import type * as seedData from "../seedData.js";
+import type * as staff from "../staff.js";
+import type * as staffList from "../staffList.js";
+import type * as subscriptions from "../subscriptions.js";
 import type * as tables from "../tables.js";
 import type * as updateCurrency from "../updateCurrency.js";
+import type * as utils from "../utils.js";
 import type * as waiterCalls from "../waiterCalls.js";
 
 import type {
@@ -36,25 +45,34 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  accessControl: typeof accessControl;
+  adminAuth: typeof adminAuth;
   analytics: typeof analytics;
   auth: typeof auth;
   categories: typeof categories;
-  cleanup: typeof cleanup;
   crons: typeof crons;
   customers: typeof customers;
+  debug: typeof debug;
   feedback: typeof feedback;
   files: typeof files;
+  fixes: typeof fixes;
   http: typeof http;
   managers: typeof managers;
   menuItems: typeof menuItems;
+  migrations: typeof migrations;
   modifiers: typeof modifiers;
   orders: typeof orders;
   qrcodes: typeof qrcodes;
   restaurants: typeof restaurants;
   router: typeof router;
+  security: typeof security;
   seedData: typeof seedData;
+  staff: typeof staff;
+  staffList: typeof staffList;
+  subscriptions: typeof subscriptions;
   tables: typeof tables;
   updateCurrency: typeof updateCurrency;
+  utils: typeof utils;
   waiterCalls: typeof waiterCalls;
 }>;
 

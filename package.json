@@ -12,6 +12,7 @@
     "@clerk/nextjs": "^6.35.5",
     "@convex-dev/auth": "^0.0.90",
     "@radix-ui/react-accordion": "^1.2.12",
+    "bcryptjs": "^3.0.3",
     "browser-image-compression": "^2.0.2",
     "clsx": "^2.1.1",
     "convex": "^1.29.3",
@@ -26,6 +27,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
