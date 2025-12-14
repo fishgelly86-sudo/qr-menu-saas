@@ -17,12 +17,12 @@ export default function StaffManagementPage() {
         restaurant ? { restaurantId: restaurant._id } : "skip"
     );
 
-    const claimOwnership = useMutation(api.fixes.claimRestaurantOwnership);
+    const claimOwnership = useMutation(api.fixes.claimBurgerBistro);
 
     const handleClaimOwnership = async () => {
         if (!restaurant) return;
         try {
-            await claimOwnership({ restaurantId: restaurant._id });
+            await claimOwnership({});
             alert("Ownership claimed! You can now manage staff.");
             window.location.reload();
         } catch (error: any) {
