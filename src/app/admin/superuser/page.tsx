@@ -72,11 +72,11 @@ export default function SuperAdminPage() {
                                     <td className="px-6 py-4 text-sm font-medium text-gray-900">{restaurant.name}</td>
                                     <td className="px-6 py-4 text-sm text-gray-600">{restaurant.slug}</td>
                                     <td className="px-6 py-4">
-                                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(restaurant.subscriptionStatus)}`}>
-                                            {restaurant.subscriptionStatus}
+                                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(restaurant.subscriptionStatus || 'trial')}`}>
+                                            {restaurant.subscriptionStatus || 'trial'}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-gray-600">{restaurant.plan}</td>
+                                    <td className="px-6 py-4 text-sm text-gray-600">{restaurant.plan || 'basic'}</td>
                                     <td className="px-6 py-4 text-sm text-gray-600">{formatDate(restaurant.subscriptionExpiresAt)}</td>
                                     <td className="px-6 py-4">
                                         <button
