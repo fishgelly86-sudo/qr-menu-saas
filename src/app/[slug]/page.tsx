@@ -476,6 +476,24 @@ export default function CustomerMenuPage() {
         );
     }
 
+    // Security check: Suspended or Expired
+    const isSuspended = menu?.restaurant?.subscriptionStatus === "suspended";
+    const isExpired = menu?.restaurant?.subscriptionExpiresAt && Date.now() > menu.restaurant.subscriptionExpiresAt;
+
+    if (isSuspended || isExpired) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#f5f3f0] p-6 text-center">
+                <div className="max-w-md space-y-4">
+                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto text-3xl">🚫</div>
+                    <h1 className="text-2xl font-serif font-bold text-[#1a1a2e]">Restaurant Unavailable</h1>
+                    <p className="text-gray-600">
+                        This restaurant is currently unavailable.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     // Security check: Manager offline
     if (managerStatus && !managerStatus.isOnline) {
         return (

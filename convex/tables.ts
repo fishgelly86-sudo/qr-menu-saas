@@ -63,7 +63,7 @@ export const updateTableStatus = mutation({
   handler: async (ctx, args) => {
     await ctx.db.patch(args.tableId, { status: args.status });
 
-    // If table is marked free, archive all active orders for this table
+    // If table is marked free, close the tab (mark orders as paid) and archive them
     if (args.status === "free") {
       const activeOrders = await ctx.db
         .query("orders")
@@ -72,7 +72,11 @@ export const updateTableStatus = mutation({
 
       for (const order of activeOrders) {
         if (!order.isArchived) {
-          await ctx.db.patch(order._id, { isArchived: true });
+          // Close the tab by marking order as paid, then archive it
+          await ctx.db.patch(order._id, {
+            status: "paid",
+            isArchived: true
+          });
         }
       }
     }
@@ -99,7 +103,7 @@ export const resetAllTables = mutation({
     for (const table of tables) {
       await ctx.db.patch(table._id, { status: "free" });
 
-      // Archive all active orders for this table
+      // Close the tab (mark orders as paid) and archive them
       const activeOrders = await ctx.db
         .query("orders")
         .withIndex("by_table", (q) => q.eq("tableId", table._id))
@@ -107,7 +111,11 @@ export const resetAllTables = mutation({
 
       for (const order of activeOrders) {
         if (!order.isArchived) {
-          await ctx.db.patch(order._id, { isArchived: true });
+          // Close the tab by marking order as paid, then archive it
+          await ctx.db.patch(order._id, {
+            status: "paid",
+            isArchived: true
+          });
         }
       }
     }

@@ -33,6 +33,23 @@ export default function ManagerLayout({
 
 // Inner component to safely use queries
 function DashboardShell({ children }: { children: React.ReactNode }) {
+    const router = useRouter();
+    // Fetch current restaurant status
+    const restaurant = useQuery(api.restaurants.getMyRestaurant);
+
+    useEffect(() => {
+        if (restaurant) {
+            const isSuspended = restaurant.subscriptionStatus === "suspended";
+            const isExpired = restaurant.subscriptionExpiresAt && Date.now() > restaurant.subscriptionExpiresAt;
+
+            if (isSuspended || isExpired) {
+                router.push("/admin/subscription-expired");
+            }
+        }
+    }, [restaurant, router]);
+
+    if (!restaurant) return null; // Or loading spinner
+
     // We just render the sidebar and children now, the logic moved to sidebar
     return (
         <div className="flex min-h-screen bg-gray-50 relative">
