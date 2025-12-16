@@ -1,8 +1,9 @@
 "use client";
+
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-export default function KitchenLayout({
+export default function SuperUserLayout({
     children,
 }: {
     children: React.ReactNode;
@@ -21,15 +22,15 @@ export default function KitchenLayout({
 
     if (!isAuthorized) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900">
-                <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-gray-400 font-medium animate-pulse">Verifying access...</p>
+            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+                <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-gray-500 font-medium animate-pulse">Verifying access...</p>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-900 text-white">
+        <div className="min-h-screen bg-gray-50">
             {children}
         </div>
     );
