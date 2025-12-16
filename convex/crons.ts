@@ -3,10 +3,10 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
-// crons.daily(
-//     "cleanup-deleted-items",
-//     { hourUTC: 0, minuteUTC: 0 },
-//     internal.cleanup.deleteOldSoftDeletedItems
-// );
+crons.daily(
+    "clear-dashboard-daily",
+    { hourUTC: 7, minuteUTC: 0 },
+    internal.orders.internalArchiveAllCompletedOrders
+);
 
 export default crons;

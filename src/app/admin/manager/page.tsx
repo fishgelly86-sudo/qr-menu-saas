@@ -3,7 +3,7 @@
 
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { CheckCircle, Clock, Coffee, DollarSign, Printer, X } from "lucide-react";
+import { CheckCircle, Clock, Coffee, DollarSign, Printer, X, Trash2 } from "lucide-react";
 import clsx from "clsx";
 import { useState } from "react";
 
@@ -43,6 +43,7 @@ export default function AdminDashboard() {
 
     const updateStatus = useMutation(api.orders.updateOrderStatus);
     const cancelOrder = useMutation(api.orders.cancelOrder);
+    const archiveCompletedOrders = useMutation(api.orders.archiveCompletedOrders);
 
     if (restaurant === undefined || orders === undefined) {
         return <div className="p-8 text-center">Loading dashboard...</div>;
@@ -141,8 +142,22 @@ export default function AdminDashboard() {
                     <h1 className="text-3xl font-bold text-gray-900">
                         {restaurant.name} Dashboard
                     </h1>
-                    <div className="text-sm text-gray-500">
-                        {orders.length} Active Orders (Since 4 AM)
+                    <div className="flex items-center gap-4">
+                        <div className="text-sm text-gray-500 hidden sm:block">
+                            {orders.length} Active Orders
+                        </div>
+                        <button
+                            onClick={async () => {
+                                if (confirm("This will hide all Paid and Cancelled orders from the dashboard. They will remain in analytics. Continue?")) {
+                                    const result = await archiveCompletedOrders({ restaurantId: restaurant._id });
+                                    alert(`Cleared ${result.archivedCount} completed orders.`);
+                                }
+                            }}
+                            className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-md border border-gray-200 transition-colors flex items-center gap-1"
+                        >
+                            <Trash2 className="w-3 h-3" />
+                            Clear Dashboard
+                        </button>
                     </div>
                 </div>
             </header>

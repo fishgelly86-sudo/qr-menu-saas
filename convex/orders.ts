@@ -206,6 +206,9 @@ export const getOrdersByRestaurant = query({
       orders = orders.filter(o => o.status !== "cancelled");
     }
 
+    // Filter out archived orders
+    orders = orders.filter(o => !o.isArchived);
+
     // Get order items and table info for each order
     const ordersWithDetails = await Promise.all(
       orders.map(async (order) => {
@@ -450,4 +453,58 @@ export const getOrdersByIds = query({
   },
 });
 
-// Sync revert
+// Manual Archive Mutation
+export const archiveCompletedOrders = mutation({
+  args: { restaurantId: v.id("restaurants") },
+  handler: async (ctx, args) => {
+    // Verify manager 
+    await requireRestaurantManager(ctx, args.restaurantId);
+
+    // Find all paid or cancelled orders that are NOT already archived
+    const orders = await ctx.db
+      .query("orders")
+      .withIndex("by_restaurant", q => q.eq("restaurantId", args.restaurantId))
+      .collect();
+
+    const ordersToArchive = orders.filter(
+      o => (o.status === "paid" || o.status === "cancelled") && !o.isArchived
+    );
+
+    await Promise.all(
+      ordersToArchive.map(order =>
+        ctx.db.patch(order._id, { isArchived: true })
+      )
+    );
+
+    return { archivedCount: ordersToArchive.length };
+  }
+});
+
+import { internalMutation } from "./_generated/server";
+
+// Cron Job: Internal Archive All (Global)
+export const internalArchiveAllCompletedOrders = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    // 1. Get all restaurants (optional, could iterate all orders directly)
+    // Actually, scanning all orders is better if we have an index.
+    // However, we only have by_restaurant or by_restaurant_and_status.
+
+    // We can scan all orders and filter. For scale, we'd want a specific index, 
+    // but for now, we iterate.
+    const orders = await ctx.db.query("orders").collect();
+
+    const ordersToArchive = orders.filter(
+      o => (o.status === "paid" || o.status === "cancelled") && !o.isArchived
+    );
+
+    await Promise.all(
+      ordersToArchive.map(order =>
+        ctx.db.patch(order._id, { isArchived: true })
+      )
+    );
+
+    console.log(`Archived ${ordersToArchive.length} orders via cron.`);
+    return { archivedCount: ordersToArchive.length };
+  }
+});
