@@ -68,7 +68,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 function RedirectToLogin() {
     const router = useRouter();
     useEffect(() => {
-        router.push("/admin/login");
+        router.push("/");
     }, [router]);
     return null;
 }

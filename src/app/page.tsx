@@ -1,90 +1,101 @@
-import Link from "next/link";
-import { ArrowRight, QrCode, Smartphone, Utensils } from "lucide-react";
+"use client";
 
-export default function LandingPage() {
+import { useAuthActions } from "@convex-dev/auth/react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+export default function LoginPage() {
+  const { signIn } = useAuthActions();
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      await signIn("password", { email, password, flow: "signIn" });
+      router.push("/admin/manager");
+    } catch (err: any) {
+      setError(err.message || "Login failed. Please check your credentials.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-white">
-      {/* Navigation */}
-      <nav className="border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <QrCode className="w-8 h-8 text-amber-500" />
-            <span className="text-xl font-bold text-gray-900">QR Menu SaaS</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/admin"
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
-            >
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <div className="w-full max-w-md">
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 p-8">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-white mb-2">
               Admin Login
-            </Link>
-            <Link
-              href="/admin"
-              className="px-4 py-2 text-sm font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600 transition-colors"
-            >
-              Get Started
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero Section */}
-      <div className="relative overflow-hidden pt-16 pb-32">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center max-w-3xl mx-auto">
-            <h1 className="text-5xl font-extrabold text-gray-900 tracking-tight mb-6">
-              Modernize Your Restaurant with <span className="text-amber-500">QR Menus</span>
             </h1>
-            <p className="text-xl text-gray-600 mb-10">
-              Create beautiful, digital menus in minutes. Contactless ordering, real-time updates, and seamless customer experience.
+            <p className="text-gray-300">
+              Sign in to manage your restaurant
             </p>
-            <div className="flex items-center justify-center gap-4">
-              <Link
-                href="/admin"
-                className="px-8 py-4 text-lg font-semibold text-white bg-amber-500 rounded-xl hover:bg-amber-600 transition-colors flex items-center gap-2 shadow-lg shadow-amber-500/20"
-              >
-                Create Your Menu <ArrowRight className="w-5 h-5" />
-              </Link>
-              <Link
-                href="#features"
-                className="px-8 py-4 text-lg font-semibold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
-              >
-                Learn More
-              </Link>
-            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Features Grid */}
-      <div id="features" className="py-24 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-3 gap-12">
-            <div className="bg-white p-8 rounded-2xl shadow-sm">
-              <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center mb-6">
-                <QrCode className="w-6 h-6 text-amber-600" />
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-3 text-red-200 text-sm">
+                {error}
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Instant QR Codes</h3>
-              <p className="text-gray-600">Generate unique QR codes for each table. Customers scan to view menu and order instantly.</p>
+            )}
+
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-200 mb-2">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                placeholder="admin@example.com"
+              />
             </div>
-            <div className="bg-white p-8 rounded-2xl shadow-sm">
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
-                <Smartphone className="w-6 h-6 text-blue-600" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Mobile Optimized</h3>
-              <p className="text-gray-600">Beautiful, responsive menus that look great on any device. No app download required.</p>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-200 mb-2">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                placeholder="••••••••"
+              />
             </div>
-            <div className="bg-white p-8 rounded-2xl shadow-sm">
-              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-6">
-                <Utensils className="w-6 h-6 text-green-600" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Easy Management</h3>
-              <p className="text-gray-600">Update items, prices, and availability in real-time from your admin dashboard.</p>
-            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 disabled:cursor-not-allowed disabled:transform-none"
+            >
+              {loading ? "Signing in..." : "Sign In"}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <p className="text-gray-400 text-sm">
+              Don't have an account?{" "}
+              <a href="/signup" className="text-purple-400 hover:text-purple-300 font-medium">
+                Sign up
+              </a>
+            </p>
           </div>
         </div>
       </div>
     </div>
   );
-}
-"// Deployment Trigger 01"
+} "// Deployment Trigger 01"
