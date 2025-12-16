@@ -19,6 +19,7 @@ export default function LoginPage() {
 
     try {
       await signIn("password", { email, password, flow: "signIn" });
+      localStorage.setItem("admin_session", "true");
       router.push("/admin/manager");
     } catch (err: any) {
       setError(err.message || "Login failed. Please check your credentials.");

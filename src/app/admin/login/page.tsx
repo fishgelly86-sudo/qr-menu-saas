@@ -23,6 +23,7 @@ export default function AdminLoginPage() {
 
         try {
             await signIn("password", { email, password, flow: "signIn" });
+            localStorage.setItem("admin_session", "true");
             // Redirect to the main manager dashboard (no slug needed in URL anymore)
             router.push("/admin/manager");
         } catch (err) {

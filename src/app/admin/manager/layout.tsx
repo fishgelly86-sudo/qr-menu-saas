@@ -1,9 +1,9 @@
 "use client";
 import AdminSidebar from "@/components/AdminSidebar";
-import { Authenticated, Unauthenticated, useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../../../../convex/_generated/api";
 
 export default function ManagerLayout({
@@ -13,21 +13,28 @@ export default function ManagerLayout({
 }) {
     const router = useRouter();
     const { signOut } = useAuthActions();
+    const [isAuthorized, setIsAuthorized] = useState(false);
 
-    // Protection Logic:
-    // 1. If Unauthenticated, Redirect to Login
-    // 2. If Authenticated, Show Dashboard
+    useEffect(() => {
+        const session = localStorage.getItem("admin_session");
+        if (!session) {
+            router.replace("/admin/login");
+        } else {
+            setIsAuthorized(true);
+        }
+    }, [router]);
+
+    if (!isAuthorized) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+                <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-gray-500 font-medium animate-pulse">Verifying access...</p>
+            </div>
+        );
+    }
 
     return (
-        <>
-            <Unauthenticated>
-                <RedirectToLogin />
-            </Unauthenticated>
-
-            <Authenticated>
-                <DashboardShell children={children} />
-            </Authenticated>
-        </>
+        <DashboardShell children={children} />
     );
 }
 
