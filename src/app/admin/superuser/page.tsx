@@ -281,7 +281,7 @@ export default function SuperAdminPage() {
                                             </code>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusStyles(restaurant.subscriptionStatus)}`}>
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusStyles(restaurant.subscriptionStatus || 'trial')}`}>
                                                 {restaurant.subscriptionStatus || 'trial'}
                                             </span>
                                         </td>
