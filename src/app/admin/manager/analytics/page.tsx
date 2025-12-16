@@ -41,6 +41,13 @@ export default function AnalyticsPage() {
         restaurant ? { restaurantId: restaurant._id, startTime, endTime } : "skip"
     ) as any;
 
+    const getTimeLabel = (range: string) => {
+        if (range === "today") return "TODAY";
+        if (range === "7days") return "THIS WEEK";
+        if (range === "30days") return "THIS MONTH";
+        return "TODAY";
+    };
+
     if (!restaurant || !stats) return <div className="p-8">Loading Analytics...</div>;
 
     return (
@@ -76,7 +83,7 @@ export default function AnalyticsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Sales Today</h3>
+                        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Sales {getTimeLabel(dateRange)}</h3>
                         <div className="p-2 bg-green-100 rounded-lg">
                             <DollarSign className="w-5 h-5 text-green-600" />
                         </div>
@@ -88,7 +95,7 @@ export default function AnalyticsPage() {
 
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Orders Today</h3>
+                        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Orders {getTimeLabel(dateRange)}</h3>
                         <div className="p-2 bg-blue-100 rounded-lg">
                             <ShoppingBag className="w-5 h-5 text-blue-600" />
                         </div>
