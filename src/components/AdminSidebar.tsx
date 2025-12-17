@@ -5,14 +5,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, Menu, UtensilsCrossed, BarChart3, ExternalLink } from "lucide-react";
 import clsx from "clsx";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
 export default function AdminSidebar() {
     const pathname = usePathname();
     const router = useRouter();
     const { signOut } = useAuthActions();
-    const restaurant = useQuery(api.restaurants.getMyRestaurant);
+    const { isAuthenticated } = useConvexAuth();
+    const restaurant = useQuery(api.restaurants.getMyRestaurant, isAuthenticated ? {} : "skip");
     const updateRestaurant = useMutation(api.restaurants.updateRestaurant);
 
     const toggleStatus = async () => {

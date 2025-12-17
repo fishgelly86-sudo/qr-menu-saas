@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/Input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/Accordion";
 import { useToast } from "@/components/ui/Toast";
 import { ImageUpload } from "@/components/ui/ImageUpload";
+import { useRestaurant } from "../layout";
 
 function AdminItemImage({ item }: { item: any }) {
     const getImageUrl = useAction(api.files.getImageUrl);
@@ -39,16 +40,14 @@ function AdminItemImage({ item }: { item: any }) {
 
 // Debug and Claim components removed as per user request to simplify.
 
+
+
 export default function MenuManager() {
-    const restaurant = useQuery(api.restaurants.getMyRestaurant);
+    // 1. Get restaurant from Context
+    const { restaurant } = useRestaurant();
+    const restaurantSlug = restaurant?.slug;
 
-    const restaurantSlug = restaurant?.slug ?? (restaurant === null ? "burger-bistro" : undefined);
-
-    // If restaurant is loading (undefined), we wait.
-    // If restaurant is null, we used fallback "burger-bistro", so slug is "burger-bistro".
-    // If restaurant is found, we use its slug.
-
-    const menu = useQuery(api.restaurants.getMenu, restaurantSlug ? { restaurantSlug } : "skip");
+    const menu = useQuery(api.restaurants.getAdminMenu, restaurantSlug ? { restaurantSlug } : "skip");
     const trash = useQuery(api.restaurants.getTrashItems, restaurantSlug ? { restaurantSlug } : "skip");
 
     const updateItem = useMutation(api.menuItems.updateMenuItem);

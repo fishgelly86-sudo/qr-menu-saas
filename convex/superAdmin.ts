@@ -17,15 +17,23 @@ export const listRestaurants = query({
     },
 });
 
+// Helper to check secret
+function checkAdminKey(providedKey: string) {
+    const expectedSecret = process.env.SUPER_ADMIN_SECRET;
+    if (!expectedSecret) throw new Error("Super admin secret not configured");
+    if (providedKey !== expectedSecret) throw new Error("Invalid super admin secret key");
+}
+
 export const createRestaurant = mutation({
     args: {
         name: v.string(),
         slug: v.string(),
         ownerEmail: v.string(),
         passwordHash: v.string(),
+        secretKey: v.string(),
     },
     handler: async (ctx, args) => {
-        // TODO: Add super admin authorization check
+        checkAdminKey(args.secretKey);
 
         // Check if slug already exists
         const existing = await ctx.db
@@ -63,9 +71,10 @@ export const updateRestaurantPassword = mutation({
     args: {
         restaurantId: v.id("restaurants"),
         passwordHash: v.string(),
+        secretKey: v.string(),
     },
     handler: async (ctx, args) => {
-        // TODO: Add super admin authorization check
+        checkAdminKey(args.secretKey);
 
         const restaurant = await ctx.db.get(args.restaurantId);
         if (!restaurant) {
@@ -86,14 +95,7 @@ export const generateImpersonationToken = mutation({
         secretKey: v.string(),
     },
     handler: async (ctx, args) => {
-        // 1. Verify Secret Key
-        const expectedSecret = process.env.SUPER_ADMIN_SECRET;
-        if (!expectedSecret) {
-            throw new Error("Super admin secret not configured in backend");
-        }
-        if (args.secretKey !== expectedSecret) {
-            throw new Error("Invalid super admin secret key");
-        }
+        checkAdminKey(args.secretKey);
 
         // 2. Fetch Restaurant
         const restaurant = await ctx.db.get(args.restaurantId);
@@ -102,7 +104,6 @@ export const generateImpersonationToken = mutation({
         }
 
         // 3. Return Session Data
-        // We're returning the raw data the frontend needs to "impersonate"
         return {
             success: true,
             restaurantId: restaurant._id,
@@ -121,9 +122,10 @@ export const updateRestaurantDetails = mutation({
         plan: v.optional(v.string()),
         subscriptionStatus: v.optional(v.union(v.literal("active"), v.literal("suspended"), v.literal("trial"))),
         subscriptionExpiresAt: v.optional(v.number()),
+        secretKey: v.string(),
     },
     handler: async (ctx, args) => {
-        // TODO: Add super admin authorization check
+        checkAdminKey(args.secretKey);
 
         const updates: any = {};
         if (args.name !== undefined) updates.name = args.name;
@@ -151,11 +153,11 @@ export const updateRestaurantDetails = mutation({
 export const deleteRestaurant = mutation({
     args: {
         restaurantId: v.id("restaurants"),
+        secretKey: v.string(),
     },
     handler: async (ctx, args) => {
-        // TODO: Add super admin authorization check
-        // In a real app, you'd want to cascade delete all related data (orders, menu items, etc.)
-        // For now, we'll just delete the restaurant doc.
+        checkAdminKey(args.secretKey);
+
         await ctx.db.delete(args.restaurantId);
     },
 });

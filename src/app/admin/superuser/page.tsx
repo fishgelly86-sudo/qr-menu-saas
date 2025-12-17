@@ -54,8 +54,21 @@ export default function SuperAdminPage() {
         });
     };
 
+    // Helper to get or prompt secret
+    const getOrPromptSecret = () => {
+        let key = secretKey;
+        if (!key) {
+            key = prompt("Enter Super Admin Secret Key to verify action:") || "";
+            if (key) setSecretKey(key);
+        }
+        return key;
+    };
+
     const handleSaveRestaurant = async () => {
         if (!editingRestaurant) return;
+
+        const key = getOrPromptSecret();
+        if (!key) return;
 
         const expiresAt = Date.now() + formData.expiryDays * 24 * 60 * 60 * 1000;
 
@@ -67,12 +80,15 @@ export default function SuperAdminPage() {
                 plan: formData.plan,
                 subscriptionStatus: formData.status as any,
                 subscriptionExpiresAt: expiresAt,
+                secretKey: key,
             });
 
             alert("Restaurant updated successfully");
             setEditingRestaurant(null);
         } catch (error: any) {
             alert("Error updating restaurant: " + error.message);
+            // If auth failed, maybe clear cached key?
+            if (error.message.includes("secret")) setSecretKey("");
         }
     };
 
@@ -89,12 +105,16 @@ export default function SuperAdminPage() {
             return;
         }
 
+        const key = getOrPromptSecret();
+        if (!key) return;
+
         try {
-            await deleteRestaurant({ restaurantId: editingRestaurant._id });
+            await deleteRestaurant({ restaurantId: editingRestaurant._id, secretKey: key });
             alert("Restaurant deleted successfully");
             setEditingRestaurant(null);
         } catch (error: any) {
             alert("Error deleting restaurant: " + error.message);
+            if (error.message.includes("secret")) setSecretKey("");
         }
     };
 
@@ -104,6 +124,9 @@ export default function SuperAdminPage() {
             return;
         }
 
+        const key = getOrPromptSecret();
+        if (!key) return;
+
         try {
             const hashedPassword = await bcrypt.hash(createFormData.password, 10);
 
@@ -112,6 +135,7 @@ export default function SuperAdminPage() {
                 slug: createFormData.slug,
                 ownerEmail: createFormData.email,
                 passwordHash: hashedPassword,
+                secretKey: key,
             });
 
             alert("Restaurant created successfully!");
@@ -119,6 +143,7 @@ export default function SuperAdminPage() {
             setCreateFormData({ name: "", slug: "", email: "", password: "" });
         } catch (error: any) {
             alert("Error creating restaurant: " + error.message);
+            if (error.message.includes("secret")) setSecretKey("");
         }
     };
 
@@ -180,7 +205,7 @@ export default function SuperAdminPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                         <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">Super Admin Dashboard</h1>
-                        <p className="text-sm text-gray-500 mt-1">Manage your restaurant partners and subscriptions</p>
+                        <p className="text-sm text-gray-600 mt-1">Manage your restaurant partners and subscriptions</p>
                     </div>
                     <button
                         onClick={() => setIsCreateModalOpen(true)}
@@ -199,7 +224,7 @@ export default function SuperAdminPage() {
                                 <Building2 className="w-6 h-6" />
                             </div>
                             <div>
-                                <p className="text-sm font-medium text-gray-500">Total Restaurants</p>
+                                <p className="text-sm font-medium text-gray-600">Total Restaurants</p>
                                 <p className="text-2xl font-semibold text-gray-900">{totalRestaurants}</p>
                             </div>
                         </div>
@@ -210,7 +235,7 @@ export default function SuperAdminPage() {
                                 <TrendingUp className="w-6 h-6" />
                             </div>
                             <div>
-                                <p className="text-sm font-medium text-gray-500">Active Plans</p>
+                                <p className="text-sm font-medium text-gray-600">Active Plans</p>
                                 <p className="text-2xl font-semibold text-gray-900">{activeRestaurants}</p>
                             </div>
                         </div>
@@ -221,7 +246,7 @@ export default function SuperAdminPage() {
                                 <Users className="w-6 h-6" />
                             </div>
                             <div>
-                                <p className="text-sm font-medium text-gray-500">On Trial</p>
+                                <p className="text-sm font-medium text-gray-600">On Trial</p>
                                 <p className="text-2xl font-semibold text-gray-900">{trialRestaurants}</p>
                             </div>
                         </div>
@@ -232,7 +257,7 @@ export default function SuperAdminPage() {
                                 <Shield className="w-6 h-6" />
                             </div>
                             <div>
-                                <p className="text-sm font-medium text-gray-500">Suspended</p>
+                                <p className="text-sm font-medium text-gray-600">Suspended</p>
                                 <p className="text-2xl font-semibold text-gray-900">{suspendedRestaurants}</p>
                             </div>
                         </div>
@@ -244,11 +269,11 @@ export default function SuperAdminPage() {
                     <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                         <h2 className="text-base font-semibold text-gray-900">All Restaurants</h2>
                         <div className="relative">
-                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                             <input
                                 type="text"
                                 placeholder="Search..."
-                                className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 w-64"
+                                className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 w-64 placeholder:text-gray-500 text-gray-900"
                             />
                         </div>
                     </div>
@@ -256,12 +281,12 @@ export default function SuperAdminPage() {
                         <table className="w-full">
                             <thead className="bg-gray-50/50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Restaurant</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Slug</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Plan</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Expires</th>
-                                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Restaurant</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Slug</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Plan</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Expires</th>
+                                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
@@ -269,14 +294,14 @@ export default function SuperAdminPage() {
                                     <tr key={restaurant._id} className="hover:bg-gray-50/80 transition-colors group">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center text-gray-500 font-bold text-xs uppercase">
+                                                <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-xs uppercase">
                                                     {restaurant.name.substring(0, 2)}
                                                 </div>
                                                 <span className="text-sm font-medium text-gray-900">{restaurant.name}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <code className="px-2 py-1 bg-gray-50 text-gray-600 text-xs rounded border border-gray-100">
+                                            <code className="px-2 py-1 bg-gray-50 text-gray-700 text-xs rounded border border-gray-100">
                                                 {restaurant.slug}
                                             </code>
                                         </td>
@@ -285,8 +310,8 @@ export default function SuperAdminPage() {
                                                 {restaurant.subscriptionStatus || 'trial'}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-gray-600 capitalize">{restaurant.plan || 'basic'}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-500 font-mono">{formatDate(restaurant.subscriptionExpiresAt)}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-700 capitalize">{restaurant.plan || 'basic'}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-600 font-mono">{formatDate(restaurant.subscriptionExpiresAt)}</td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center justify-end gap-2 opacity-100">
                                                 <button
@@ -299,7 +324,7 @@ export default function SuperAdminPage() {
                                                 </button>
                                                 <button
                                                     onClick={() => handleEditClick(restaurant)}
-                                                    className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
+                                                    className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
                                                     title="Edit Details"
                                                 >
                                                     <Pencil className="w-4 h-4" />
@@ -333,7 +358,7 @@ export default function SuperAdminPage() {
                                             type="text"
                                             value={formData.name}
                                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
+                                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-gray-900"
                                         />
                                     </div>
 
@@ -343,7 +368,7 @@ export default function SuperAdminPage() {
                                             type="text"
                                             value={formData.slug}
                                             onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
+                                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-gray-900"
                                         />
                                         <p className="text-[11px] text-amber-600 mt-1.5 flex items-center gap-1">
                                             <AlertTriangle className="w-3 h-3" />
@@ -357,7 +382,7 @@ export default function SuperAdminPage() {
                                             <select
                                                 value={formData.status}
                                                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
+                                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-gray-900"
                                             >
                                                 <option value="active">Active</option>
                                                 <option value="suspended">Suspended</option>
@@ -369,7 +394,7 @@ export default function SuperAdminPage() {
                                             <select
                                                 value={formData.plan}
                                                 onChange={(e) => setFormData({ ...formData, plan: e.target.value })}
-                                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
+                                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-gray-900"
                                             >
                                                 <option value="basic">Basic</option>
                                                 <option value="pro">Pro</option>
@@ -385,7 +410,7 @@ export default function SuperAdminPage() {
                                                 type="number"
                                                 value={formData.expiryDays}
                                                 onChange={(e) => setFormData({ ...formData, expiryDays: Number(e.target.value) })}
-                                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none pl-3"
+                                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none pl-3 text-gray-900"
                                             />
                                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">days</span>
                                         </div>
@@ -439,7 +464,7 @@ export default function SuperAdminPage() {
                                             type="text"
                                             value={createFormData.name}
                                             onChange={(e) => setCreateFormData({ ...createFormData, name: e.target.value })}
-                                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
+                                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-gray-900"
                                             placeholder="e.g. Burger Bistro"
                                         />
                                     </div>
@@ -454,7 +479,7 @@ export default function SuperAdminPage() {
                                                 type="text"
                                                 value={createFormData.slug}
                                                 onChange={(e) => setCreateFormData({ ...createFormData, slug: e.target.value })}
-                                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-r-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
+                                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-r-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-gray-900"
                                                 placeholder="burger-bistro"
                                             />
                                         </div>
@@ -466,7 +491,7 @@ export default function SuperAdminPage() {
                                             type="email"
                                             value={createFormData.email}
                                             onChange={(e) => setCreateFormData({ ...createFormData, email: e.target.value })}
-                                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
+                                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-gray-900"
                                             placeholder="owner@example.com"
                                         />
                                     </div>
@@ -477,7 +502,7 @@ export default function SuperAdminPage() {
                                             type="password"
                                             value={createFormData.password}
                                             onChange={(e) => setCreateFormData({ ...createFormData, password: e.target.value })}
-                                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
+                                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-gray-900"
                                             placeholder="••••••••"
                                         />
                                     </div>
