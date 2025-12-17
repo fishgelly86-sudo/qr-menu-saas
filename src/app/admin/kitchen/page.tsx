@@ -46,6 +46,25 @@ export default function KitchenPage() {
         return <div className="p-8 text-center text-red-500">Restaurant not found.</div>;
     }
 
+    // Security check: Suspended or Expired
+    const isSuspended = restaurant?.subscriptionStatus === "suspended";
+    const isExpired = restaurant?.subscriptionExpiresAt && Date.now() > restaurant.subscriptionExpiresAt;
+
+    if (isSuspended || isExpired) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-900 p-6 text-center">
+                <div className="max-w-md space-y-4">
+                    <div className="w-16 h-16 bg-red-900 rounded-full flex items-center justify-center mx-auto text-3xl">🚫</div>
+                    <h1 className="text-2xl font-bold text-white">Restaurant Unavailable</h1>
+                    <p className="text-gray-400">
+                        This restaurant's subscription {isSuspended ? 'has been suspended' : 'has expired'}.
+                        Please contact the restaurant owner to resolve this issue.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
 
 
     const handleStatusUpdate = async (orderId: any, newStatus: "pending" | "preparing" | "ready" | "served" | "paid") => {

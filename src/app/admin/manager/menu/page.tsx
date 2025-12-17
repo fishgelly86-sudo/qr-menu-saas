@@ -209,28 +209,28 @@ export default function MenuManager() {
     return (
         <div className="min-h-screen bg-gray-50 pb-12">
             <header className="bg-white shadow">
-                <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex justify-between items-center">
+                <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <h1 className="text-3xl font-bold text-gray-900">Menu Management</h1>
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap gap-2 sm:gap-3 w-full sm:w-auto">
                         <Button
                             variant="outline"
                             onClick={() => setIsModifiersOpen(true)}
-                            className="text-gray-600 border-gray-300 hover:bg-gray-50"
+                            className="text-gray-600 border-gray-300 hover:bg-gray-50 text-xs sm:text-sm flex-1 sm:flex-none"
                         >
                             <Edit className="w-4 h-4 mr-2" />
-                            Manage Modifiers
+                            Modifiers
                         </Button>
                         <Button
                             variant="outline"
                             onClick={() => setIsTrashOpen(true)}
-                            className="text-gray-600 border-gray-300 hover:bg-gray-50"
+                            className="text-gray-600 border-gray-300 hover:bg-gray-50 text-xs sm:text-sm flex-1 sm:flex-none"
                         >
                             <Trash2 className="w-4 h-4 mr-2" />
-                            View Trash
+                            Trash
                         </Button>
                         <Button
                             onClick={() => setIsCategoryModalOpen(true)}
-                            className="bg-green-600 hover:bg-green-700 text-white"
+                            className="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm flex-1 sm:flex-none"
                         >
                             <Plus className="w-4 h-4 mr-2" />
                             Add Category
@@ -242,52 +242,54 @@ export default function MenuManager() {
             <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
                 <Accordion type="multiple" className="w-full space-y-4">
                     {menu.categories.map((category: any) => (
-                        <AccordionItem key={category._id} value={category._id} className="bg-white rounded-xl shadow-sm border border-gray-100 px-6">
-                            <AccordionTrigger className="hover:no-underline py-6 w-full flex justify-between items-center" hideChevron>
-                                <div className="flex items-center gap-4">
+                        <AccordionItem key={category._id} value={category._id} className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 sm:px-6">
+                            <AccordionTrigger className="hover:no-underline py-6 w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4" hideChevron>
+                                <div className="flex items-center gap-4 w-full sm:w-auto">
                                     <ChevronDown className="h-5 w-5 shrink-0 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
-                                    <h2 className="text-xl font-bold text-gray-800">{category.name}</h2>
-                                    <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                                    <h2 className="text-xl font-bold text-gray-800 text-left">{category.name}</h2>
+                                    <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full whitespace-nowrap">
                                         {category.items.length} items
                                     </span>
                                 </div>
-                                <div
-                                    role="button"
-                                    tabIndex={0}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setIsAddingItem(true);
-                                        setFormData(prev => ({ ...prev, categoryId: category._id }));
-                                    }}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' || e.key === ' ') {
+                                <div className="flex items-center gap-2 w-full sm:w-auto pl-9 sm:pl-0">
+                                    <div
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={(e) => {
                                             e.stopPropagation();
-                                            e.preventDefault();
                                             setIsAddingItem(true);
                                             setFormData(prev => ({ ...prev, categoryId: category._id }));
-                                        }
-                                    }}
-                                    className="inline-flex items-center justify-center rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-95 h-8 px-3 text-xs bg-blue-600 text-white hover:bg-blue-700 cursor-pointer"
-                                >
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Add Item
-                                </div>
-                                <div
-                                    role="button"
-                                    tabIndex={0}
-                                    onClick={(e) => handleDeleteCategory(category, e)}
-                                    className="ml-2 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                    title="Delete Category"
-                                >
-                                    <Trash2 className="w-5 h-5" />
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.stopPropagation();
+                                                e.preventDefault();
+                                                setIsAddingItem(true);
+                                                setFormData(prev => ({ ...prev, categoryId: category._id }));
+                                            }
+                                        }}
+                                        className="inline-flex items-center justify-center rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-95 h-8 px-3 text-xs bg-blue-600 text-white hover:bg-blue-700 cursor-pointer flex-1 sm:flex-none"
+                                    >
+                                        <Plus className="w-4 h-4 mr-2" />
+                                        Add Item
+                                    </div>
+                                    <div
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={(e) => handleDeleteCategory(category, e)}
+                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Delete Category"
+                                    >
+                                        <Trash2 className="w-5 h-5" />
+                                    </div>
                                 </div>
                             </AccordionTrigger>
                             <AccordionContent>
                                 <div className="pt-4 pb-6 divide-y divide-gray-100">
                                     {category.items.map((item: any) => (
-                                        <div key={item._id} className="py-6 flex items-start gap-6 hover:bg-gray-50 transition-colors group rounded-lg px-4 -mx-4">
+                                        <div key={item._id} className="py-6 flex flex-col sm:flex-row items-start gap-4 sm:gap-6 hover:bg-gray-50 transition-colors group rounded-lg px-2 sm:px-4 -mx-2 sm:-mx-4">
                                             {/* Image */}
-                                            <div className="w-24 h-24 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden relative border border-gray-200">
+                                            <div className="w-full sm:w-24 h-48 sm:h-24 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden relative border border-gray-200">
                                                 <AdminItemImage item={item} />
                                                 {!item.isAvailable && (
                                                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -297,25 +299,25 @@ export default function MenuManager() {
                                             </div>
 
                                             {/* Content */}
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex justify-between items-start">
+                                            <div className="flex-1 w-full min-w-0">
+                                                <div className="flex justify-between items-start gap-4">
                                                     <div>
                                                         <h3 className="text-lg font-bold text-gray-900">{item.name}</h3>
                                                         <p className="text-gray-500 text-sm mt-1 line-clamp-2">{item.description}</p>
                                                     </div>
-                                                    <div className="text-right">
+                                                    <div className="text-right shrink-0">
                                                         <span className="text-lg font-bold text-[#D4AF37]">
                                                             {item.price.toFixed(2)} DA
                                                         </span>
                                                     </div>
                                                 </div>
 
-                                                <div className="mt-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div className="mt-4 flex flex-wrap items-center gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
                                                         onClick={() => handleEditClick(item)}
-                                                        className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                                                        className="text-blue-600 border-blue-200 hover:bg-blue-50 flex-1 sm:flex-none"
                                                     >
                                                         <Edit className="w-4 h-4 mr-1" />
                                                         Edit
@@ -324,17 +326,17 @@ export default function MenuManager() {
                                                         variant="outline"
                                                         size="sm"
                                                         onClick={() => handleToggleAvailability(item)}
-                                                        className={item.isAvailable ? "text-orange-600 border-orange-200 hover:bg-orange-50" : "text-green-600 border-green-200 hover:bg-green-50"}
+                                                        className={`flex-1 sm:flex-none ${item.isAvailable ? "text-orange-600 border-orange-200 hover:bg-orange-50" : "text-green-600 border-green-200 hover:bg-green-50"}`}
                                                     >
                                                         {item.isAvailable ? (
                                                             <>
                                                                 <EyeOff className="w-4 h-4 mr-1" />
-                                                                Mark Unavailable
+                                                                Unavailable
                                                             </>
                                                         ) : (
                                                             <>
                                                                 <Eye className="w-4 h-4 mr-1" />
-                                                                Mark Available
+                                                                Available
                                                             </>
                                                         )}
                                                     </Button>
@@ -407,7 +409,7 @@ export default function MenuManager() {
                         <p className="text-xs text-gray-500 mt-1">Leave empty to auto-translate from English.</p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Price (DA)</label>
                             <Input
@@ -445,7 +447,7 @@ export default function MenuManager() {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Related Modifiers</label>
-                        <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 border border-gray-200 rounded-lg">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 border border-gray-200 rounded-lg">
                             {menu.modifiers?.map((mod: any) => (
                                 <label key={mod._id} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
                                     <input

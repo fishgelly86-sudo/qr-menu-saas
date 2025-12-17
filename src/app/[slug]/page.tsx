@@ -6,7 +6,17 @@ import { api } from "../../../convex/_generated/api";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
-import { Plus, Minus, ShoppingCart, BellRing, Star, Heart, CheckCircle2, X, Clock } from "lucide-react";
+import {
+    Plus,
+    Minus,
+    ShoppingCart,
+    BellRing,
+    Star,
+    Heart,
+    CheckCircle2,
+    X,
+    Clock,
+} from "lucide-react";
 
 // UI Components
 import { Button } from "@/components/ui/Button";
@@ -41,12 +51,12 @@ export default function CustomerMenuPage() {
     const { t, direction, language } = useLanguage();
 
     const statusTranslations: Record<string, string> = {
-        pending: 'قيد الانتظار',
-        preparing: 'قيد التحضير',
-        ready: 'جاهز',
-        served: 'تم التقديم',
-        paid: 'مدفوع',
-        cancelled: 'ملغى'
+        pending: "قيد الانتظار",
+        preparing: "قيد التحضير",
+        ready: "جاهز",
+        served: "تم التقديم",
+        paid: "مدفوع",
+        cancelled: "ملغى",
     };
 
     const getStatusLabel = (status: string) => {
@@ -64,8 +74,6 @@ export default function CustomerMenuPage() {
         };
         return englishLabels[lower] || status.toUpperCase();
     };
-
-
 
     // State
     const [tableNumber, setTableNumber] = useState<string | null>(tableParam);
@@ -86,27 +94,46 @@ export default function CustomerMenuPage() {
     const [currentOrderId, setCurrentOrderId] = useState<any>(null); // Currently viewed order
     const [activeOrderIds, setActiveOrderIds] = useState<string[]>([]); // History of active orders
 
-    const [toast, setToast] = useState<{ message: string; type: "success" | "error"; isVisible: boolean }>({
+    const [toast, setToast] = useState<{
+        message: string;
+        type: "success" | "error";
+        isVisible: boolean;
+    }>({
         message: "",
         type: "success",
         isVisible: false,
     });
 
     // State for editing extras
-    const [editingCartItemIndex, setEditingCartItemIndex] = useState<number | null>(null);
+    const [editingCartItemIndex, setEditingCartItemIndex] = useState<
+        number | null
+    >(null);
 
-    const [upsellInitialQuantities, setUpsellInitialQuantities] = useState<Record<string, number>>({});
+    const [upsellInitialQuantities, setUpsellInitialQuantities] = useState<
+        Record<string, number>
+    >({});
 
     const categoryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
     // Queries & Mutations
-    const menu = useQuery(api.restaurants.getMenu, { restaurantSlug: slug }) as any;
-    const trackedOrder = useQuery(api.orders.getOrder, currentOrderId ? { orderId: currentOrderId } : "skip");
-    const activeOrders = useQuery(api.orders.getOrdersByIds, activeOrderIds.length > 0 ? { orderIds: activeOrderIds as any } : "skip");
+    const menu = useQuery(api.restaurants.getMenu, {
+        restaurantSlug: slug,
+    }) as any;
+    const trackedOrder = useQuery(
+        api.orders.getOrder,
+        currentOrderId ? { orderId: currentOrderId } : "skip"
+    );
+    const activeOrders = useQuery(
+        api.orders.getOrdersByIds,
+        activeOrderIds.length > 0 ? { orderIds: activeOrderIds as any } : "skip"
+    );
     const callWaiter = useMutation(api.waiterCalls.callWaiter);
 
     // Security: Check Manager Status
-    const managerStatus = useQuery(api.managers.isManagerOnline, menu?.restaurant?._id ? { restaurantId: menu.restaurant._id } : "skip");
+    const managerStatus = useQuery(
+        api.managers.isManagerOnline,
+        menu?.restaurant?._id ? { restaurantId: menu.restaurant._id } : "skip"
+    );
 
     // Effects
     useEffect(() => {
@@ -128,9 +155,7 @@ export default function CustomerMenuPage() {
                     // If we have active orders, show the latest one by default if it's the first load
                     // But we'll leave currentOrderId null so the user sees the menu first, unless they just placed it
                 }
-            } catch (e) {
-
-            }
+            } catch (e) { }
         }
     }, []);
 
@@ -144,33 +169,33 @@ export default function CustomerMenuPage() {
     // Watch for archived orders (Current View)
     useEffect(() => {
         /*
-        console.log("TrackedOrder Effect:", trackedOrder);
-        if (trackedOrder && trackedOrder.isArchived) {
-            console.log("Order is archived, clearing currentOrderId");
-            setCurrentOrderId(null);
-            showToast(t("table_cleared"), "success");
-        }
-        */
+            console.log("TrackedOrder Effect:", trackedOrder);
+            if (trackedOrder && trackedOrder.isArchived) {
+                console.log("Order is archived, clearing currentOrderId");
+                setCurrentOrderId(null);
+                showToast(t("table_cleared"), "success");
+            }
+            */
     }, [trackedOrder]);
 
     // Sync local history with valid backend orders
     useEffect(() => {
         /*
-        if (activeOrders) {
-            const validOrderIds = activeOrders.map((o: any) => o._id);
-            // Only update if lengths differ to avoid loops, but also check for content mismatch if needed
-            // Ideally we just set it to valid ones.
-            if (validOrderIds.length !== activeOrderIds.length) {
-                // We don't want to remove the currentOrderId if it's just missing because of query lag
-                // But activeOrders query SHOULD respond to activeOrderIds change.
-                
-                // Safe guard: if currentOrderId is in activeOrderIds but NOT in validOrderIds, 
-                // it might mean it's archived OR data is stale. 
-                // Since we check archived above with trackedOrder, we can be safer here.
-                setActiveOrderIds(validOrderIds);
+            if (activeOrders) {
+                const validOrderIds = activeOrders.map((o: any) => o._id);
+                // Only update if lengths differ to avoid loops, but also check for content mismatch if needed
+                // Ideally we just set it to valid ones.
+                if (validOrderIds.length !== activeOrderIds.length) {
+                    // We don't want to remove the currentOrderId if it's just missing because of query lag
+                    // But activeOrders query SHOULD respond to activeOrderIds change.
+                    
+                    // Safe guard: if currentOrderId is in activeOrderIds but NOT in validOrderIds, 
+                    // it might mean it's archived OR data is stale. 
+                    // Since we check archived above with trackedOrder, we can be safer here.
+                    setActiveOrderIds(validOrderIds);
+                }
             }
-        }
-        */
+            */
     }, [activeOrders, activeOrderIds]);
 
     // No auto-clear for cancelled orders - let user dismiss manually via banner
@@ -185,8 +210,8 @@ export default function CustomerMenuPage() {
             setShowCart(false);
         };
 
-        window.addEventListener('popstate', handlePopState);
-        return () => window.removeEventListener('popstate', handlePopState);
+        window.addEventListener("popstate", handlePopState);
+        return () => window.removeEventListener("popstate", handlePopState);
     }, []);
 
     // Push history state when modals open
@@ -197,7 +222,7 @@ export default function CustomerMenuPage() {
             // Only push if we haven't already pushed for this modal state
             // Check specifically for our modal flag to avoid pushing multiple times
             if (!window.history.state?.modal) {
-                window.history.pushState({ modal: true }, '');
+                window.history.pushState({ modal: true }, "");
             }
         }
     }, [selectedItem, showUpsellModal, showCart]);
@@ -205,22 +230,34 @@ export default function CustomerMenuPage() {
     // Derived State
     const cartTotal = cart.reduce((sum, item) => {
         const itemBaseTotal = item.price * item.quantity;
-        const modifiersTotal = item.modifiers?.reduce((modSum, mod) => modSum + (mod.price * mod.quantity), 0) || 0;
+        const modifiersTotal =
+            item.modifiers?.reduce(
+                (modSum, mod) => modSum + mod.price * mod.quantity,
+                0
+            ) || 0;
         return sum + itemBaseTotal + modifiersTotal;
     }, 0);
     const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-    const filteredCategories = menu?.categories.map((category: any) => ({
-        ...category,
-        items: category.items.filter((item: any) =>
-            item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.tags?.some((tag: string) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-        )
-    })).filter((cat: any) => cat.items.length > 0);
+    const filteredCategories = menu?.categories
+        .map((category: any) => ({
+            ...category,
+            items: category.items.filter(
+                (item: any) =>
+                    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    item.tags?.some((tag: string) =>
+                        tag.toLowerCase().includes(searchQuery.toLowerCase())
+                    )
+            ),
+        }))
+        .filter((cat: any) => cat.items.length > 0);
 
     // Handlers
-    const showToast = (message: string, type: "success" | "error" = "success") => {
+    const showToast = (
+        message: string,
+        type: "success" | "error" = "success"
+    ) => {
         setToast({ message, type, isVisible: true });
     };
 
@@ -250,7 +287,8 @@ export default function CustomerMenuPage() {
                     id: mod._id,
                     name: mod.name,
                     price: mod.price,
-                    description: mod.name_ar && language === 'ar' ? mod.name_ar : undefined
+                    description:
+                        mod.name_ar && language === "ar" ? mod.name_ar : undefined,
                 }));
 
             if (specificModifiers.length > 0) {
@@ -268,9 +306,9 @@ export default function CustomerMenuPage() {
     const addToCart = (upsells: (UpsellItem & { quantity?: number })[] = []) => {
         if (!selectedItem) return;
 
-        const modifiers = upsells.map(u => ({
+        const modifiers = upsells.map((u) => ({
             ...u,
-            quantity: u.quantity || 1
+            quantity: u.quantity || 1,
         }));
 
         const newItem: CartItem = {
@@ -280,10 +318,10 @@ export default function CustomerMenuPage() {
             quantity: itemQuantity,
             notes: itemNotes,
             imageUrl: selectedItem.imageUrl,
-            modifiers
+            modifiers,
         };
 
-        setCart(prev => [...prev, newItem]);
+        setCart((prev) => [...prev, newItem]);
         setSelectedItem(null);
         setItemQuantity(1);
         setItemNotes("");
@@ -291,12 +329,16 @@ export default function CustomerMenuPage() {
         showToast(t("added_to_cart"), "success");
     };
 
-    const handleConfirmUpsell = (upsellSelections: { id: string; quantity: number }[]) => {
-        const selectedUpsells = upsellSelections.map(selection => {
-            const original = currentUpsells.find(u => u.id === selection.id);
-            if (!original) return null;
-            return { ...original, quantity: selection.quantity };
-        }).filter(Boolean) as (UpsellItem & { quantity: number })[];
+    const handleConfirmUpsell = (
+        upsellSelections: { id: string; quantity: number }[]
+    ) => {
+        const selectedUpsells = upsellSelections
+            .map((selection) => {
+                const original = currentUpsells.find((u) => u.id === selection.id);
+                if (!original) return null;
+                return { ...original, quantity: selection.quantity };
+            })
+            .filter(Boolean) as (UpsellItem & { quantity: number })[];
 
         if (editingCartItemIndex !== null) {
             // Updating existing cart item
@@ -334,7 +376,8 @@ export default function CustomerMenuPage() {
                     id: mod._id,
                     name: mod.name,
                     price: mod.price,
-                    description: mod.name_ar && language === 'ar' ? mod.name_ar : undefined
+                    description:
+                        mod.name_ar && language === "ar" ? mod.name_ar : undefined,
                 }));
 
             setCurrentUpsells(specificModifiers);
@@ -342,7 +385,7 @@ export default function CustomerMenuPage() {
             // Populate initial quantities from current cart item modifiers
             const initialQty: Record<string, number> = {};
             if (item.modifiers) {
-                item.modifiers.forEach(mod => {
+                item.modifiers.forEach((mod) => {
                     initialQty[mod.id] = mod.quantity;
                 });
             }
@@ -353,7 +396,10 @@ export default function CustomerMenuPage() {
         }
     };
 
-    const handleUpdateCartItemExtras = (index: number, newModifiers: (UpsellItem & { quantity: number })[]) => {
+    const handleUpdateCartItemExtras = (
+        index: number,
+        newModifiers: (UpsellItem & { quantity: number })[]
+    ) => {
         const newCart = [...cart];
         newCart[index] = { ...newCart[index], modifiers: newModifiers };
         setCart(newCart);
@@ -374,7 +420,11 @@ export default function CustomerMenuPage() {
         }
     };
 
-    const handleUpdateCartModifierQuantity = (cartIndex: number, modIndex: number, delta: number) => {
+    const handleUpdateCartModifierQuantity = (
+        cartIndex: number,
+        modIndex: number,
+        delta: number
+    ) => {
         const newCart = [...cart];
         const item = newCart[cartIndex];
         if (item.modifiers && item.modifiers[modIndex]) {
@@ -399,21 +449,21 @@ export default function CustomerMenuPage() {
                 menuItemId: item.menuItemId as any,
                 quantity: item.quantity,
                 notes: item.notes,
-                modifiers: item.modifiers?.map(m => ({
+                modifiers: item.modifiers?.map((m) => ({
                     modifierId: m.id,
-                    quantity: m.quantity
-                }))
+                    quantity: m.quantity,
+                })),
             }));
 
             // Use Secure API Route
-            const response = await fetch('/api/orders', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+            const response = await fetch("/api/orders", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     restaurantId: menu.restaurant._id,
                     tableNumber: tableNumber,
-                    items
-                })
+                    items,
+                }),
             });
 
             const data = await response.json();
@@ -421,7 +471,10 @@ export default function CustomerMenuPage() {
             if (!response.ok) {
                 // Handle specific errors
                 if (response.status === 429) {
-                    throw new Error(t("rate_limit_exceeded") || "Too many requests. Please wait a moment.");
+                    throw new Error(
+                        t("rate_limit_exceeded") ||
+                        "Too many requests. Please wait a moment."
+                    );
                 }
                 throw new Error(data.error || t("failed_place_order"));
             }
@@ -431,7 +484,7 @@ export default function CustomerMenuPage() {
             setCart([]);
             setShowCart(false);
             setCurrentOrderId(orderId); // Start tracking
-            setActiveOrderIds(prev => [...prev, orderId]); // Add to history
+            setActiveOrderIds((prev) => [...prev, orderId]); // Add to history
         } catch (error: any) {
             showToast(error.message, "error");
         }
@@ -444,12 +497,11 @@ export default function CustomerMenuPage() {
             await callWaiter({
                 restaurantId: menu.restaurant._id,
                 tableNumber: tableNumber,
-                type
+                type,
             });
             setShowWaiterDialog(false);
             showToast(t("waiter_called", { type }), "success");
         } catch (error) {
-
             showToast(t("failed_call_waiter"), "error");
         }
     };
@@ -470,7 +522,9 @@ export default function CustomerMenuPage() {
             <div className="min-h-screen flex items-center justify-center bg-[#f5f3f0]">
                 <div className="flex flex-col items-center gap-4">
                     <div className="w-12 h-12 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
-                    <p className="text-[#1a1a2e] font-serif italic">{t("preparing_experience")}</p>
+                    <p className="text-[#1a1a2e] font-serif italic">
+                        {t("preparing_experience")}
+                    </p>
                 </div>
             </div>
         );
@@ -480,29 +534,21 @@ export default function CustomerMenuPage() {
     const isSuspended = menu?.restaurant?.subscriptionStatus === "suspended";
     const isExpired = menu?.restaurant?.subscriptionExpiresAt && Date.now() > menu.restaurant.subscriptionExpiresAt;
 
-    if (isSuspended || isExpired) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-[#f5f3f0] p-6 text-center">
-                <div className="max-w-md space-y-4">
-                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto text-3xl">🚫</div>
-                    <h1 className="text-2xl font-serif font-bold text-[#1a1a2e]">Restaurant Unavailable</h1>
-                    <p className="text-gray-600">
-                        This restaurant is currently unavailable.
-                    </p>
-                </div>
-            </div>
-        );
-    }
-
     // Security check: Manager offline
     if (managerStatus && !managerStatus.isOnline) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-[#f5f3f0] p-6 text-center">
                 <div className="max-w-md space-y-4">
-                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto text-3xl">🔒</div>
-                    <h1 className="text-2xl font-serif font-bold text-[#1a1a2e]">{t("restaurant_closed") || "Restaurant Closed"}</h1>
+                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto text-3xl">
+                        🔒
+                    </div>
+                    <h1 className="text-2xl font-serif font-bold text-[#1a1a2e]">
+                        {t("restaurant_closed") || "Restaurant Closed"}
+                    </h1>
                     <p className="text-gray-600">
-                        {managerStatus.reason || t("manager_offline_msg") || "We are currently not accepting orders. Please check back later or ask a waiter."}
+                        {managerStatus.reason ||
+                            t("manager_offline_msg") ||
+                            "We are currently not accepting orders. Please check back later or ask a waiter."}
                     </p>
                 </div>
             </div>
@@ -515,7 +561,9 @@ export default function CustomerMenuPage() {
             <div className="min-h-screen flex items-center justify-center bg-[#1a1a2e]">
                 <div className="flex flex-col items-center gap-4">
                     <div className="w-12 h-12 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
-                    <p className="text-[#D4AF37] font-serif">{t("loading_status") || "Loading Status..."}</p>
+                    <p className="text-[#D4AF37] font-serif">
+                        {t("loading_status") || "Loading Status..."}
+                    </p>
                 </div>
             </div>
         );
@@ -532,7 +580,21 @@ export default function CustomerMenuPage() {
         );
     }
 
-    return (
+    return isSuspended || isExpired ? (
+        <div className="min-h-screen flex items-center justify-center bg-[#f5f3f0] p-6 text-center">
+            <div className="max-w-md space-y-4">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto text-3xl">
+                    🚫
+                </div>
+                <h1 className="text-2xl font-serif font-bold text-[#1a1a2e]">
+                    Restaurant Unavailable
+                </h1>
+                <p className="text-gray-600">
+                    This restaurant is currently unavailable.
+                </p>
+            </div>
+        </div>
+    ) : (
         <div className="min-h-screen bg-[#f5f3f0] pb-24 font-sans">
             {/* 1. Fixed Header */}
             <header className="fixed top-0 left-0 right-0 bg-[#1a1a2e] shadow-lg z-40 h-[70px]">
@@ -540,7 +602,12 @@ export default function CustomerMenuPage() {
                     <div className="flex items-center gap-3">
                         {menu.restaurant.logoUrl ? (
                             <div className="w-10 h-10 relative rounded-full overflow-hidden border border-[#D4AF37]/50">
-                                <Image src={menu.restaurant.logoUrl} alt="Logo" fill className="object-cover" />
+                                <Image
+                                    src={menu.restaurant.logoUrl}
+                                    alt="Logo"
+                                    fill
+                                    className="object-cover"
+                                />
                             </div>
                         ) : (
                             <div className="w-10 h-10 rounded-full bg-[#D4AF37] flex items-center justify-center text-[#1a1a2e] font-serif font-bold text-lg">
@@ -548,8 +615,14 @@ export default function CustomerMenuPage() {
                             </div>
                         )}
                         <div>
-                            <h1 className="text-lg font-serif text-[#f5f3f0] leading-tight tracking-wide">{menu.restaurant.name}</h1>
-                            {tableNumber && <p className="text-xs text-[#D4AF37]">{t("table_no")} {tableNumber}</p>}
+                            <h1 className="text-lg font-serif text-[#f5f3f0] leading-tight tracking-wide">
+                                {menu.restaurant.name}
+                            </h1>
+                            {tableNumber && (
+                                <p className="text-xs text-[#D4AF37]">
+                                    {t("table_no")} {tableNumber}
+                                </p>
+                            )}
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -573,7 +646,9 @@ export default function CustomerMenuPage() {
                             <span className="text-2xl">⚠️</span>
                             <div>
                                 <p className="text-sm font-bold text-red-800">
-                                    {t("order_cancelled_title", { id: trackedOrder._id.slice(-4) })}
+                                    {t("order_cancelled_title", {
+                                        id: trackedOrder._id.slice(-4),
+                                    })}
                                 </p>
                                 <p className="text-xs text-red-600 mt-0.5">
                                     {t("order_cancelled_msg")}
@@ -583,7 +658,9 @@ export default function CustomerMenuPage() {
                         <button
                             onClick={() => {
                                 setCurrentOrderId(null);
-                                setActiveOrderIds(prev => prev.filter(id => id !== trackedOrder._id));
+                                setActiveOrderIds((prev) =>
+                                    prev.filter((id) => id !== trackedOrder._id)
+                                );
                             }}
                             className="text-red-400 hover:text-red-600 hover:bg-red-100 p-2 rounded-full transition-colors flex-shrink-0"
                             aria-label="Dismiss"
@@ -630,11 +707,15 @@ export default function CustomerMenuPage() {
                 {filteredCategories?.map((category: any) => (
                     <div
                         key={category._id}
-                        ref={(el) => { categoryRefs.current[category._id] = el; }}
+                        ref={(el) => {
+                            categoryRefs.current[category._id] = el;
+                        }}
                         className="space-y-5"
                     >
                         <h2 className="text-2xl font-serif text-[#1a1a2e] flex items-center gap-3 relative">
-                            <span className="relative z-10 bg-[#f5f3f0] pr-4">{category.name}</span>
+                            <span className="relative z-10 bg-[#f5f3f0] pr-4">
+                                {category.name}
+                            </span>
                             <div className="absolute left-0 right-0 top-1/2 h-px bg-[#D4AF37]/20 -z-0" />
                         </h2>
 
@@ -648,31 +729,53 @@ export default function CustomerMenuPage() {
                                         setItemQuantity(1);
                                         setItemNotes("");
                                     }}
-                                    className={`group bg-white rounded-2xl p-4 shadow-sm border border-[#D4AF37]/10 transition-all duration-300 relative overflow-hidden ${item.isAvailable ? 'hover:shadow-xl hover:shadow-[#D4AF37]/10 cursor-pointer' : 'opacity-80 cursor-not-allowed'}`}
+                                    className={`group bg-white rounded-2xl p-4 shadow-sm border border-[#D4AF37]/10 transition-all duration-300 relative overflow-hidden ${item.isAvailable
+                                        ? "hover:shadow-xl hover:shadow-[#D4AF37]/10 cursor-pointer"
+                                        : "opacity-80 cursor-not-allowed"
+                                        }`}
                                 >
                                     <div className="flex gap-4">
                                         {item.imageUrl && (
                                             <div className="w-28 h-28 relative rounded-xl overflow-hidden shadow-inner flex-shrink-0">
-                                                <Image src={item.imageUrl} alt={item.name} fill className={`object-cover transition-transform duration-500 ${item.isAvailable ? 'group-hover:scale-110' : 'grayscale'}`} />
+                                                <Image
+                                                    src={item.imageUrl}
+                                                    alt={item.name}
+                                                    fill
+                                                    className={`object-cover transition-transform duration-500 ${item.isAvailable
+                                                        ? "group-hover:scale-110"
+                                                        : "grayscale"
+                                                        }`}
+                                                />
                                                 {!item.isAvailable && (
                                                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                                        <span className="text-white font-bold text-xs bg-red-600 px-2 py-1 rounded transform -rotate-12">{t("sold_out")}</span>
+                                                        <span className="text-white font-bold text-xs bg-red-600 px-2 py-1 rounded transform -rotate-12">
+                                                            {t("sold_out")}
+                                                        </span>
                                                     </div>
                                                 )}
                                             </div>
                                         )}
                                         <div className="flex-1 flex flex-col justify-between min-w-0 py-1">
                                             <div>
-                                                <h3 className="font-serif font-bold text-[#1a1a2e] text-lg leading-tight">{item.name}</h3>
+                                                <h3 className="font-serif font-bold text-[#1a1a2e] text-lg leading-tight">
+                                                    {item.name}
+                                                </h3>
                                                 <p className="text-xs text-gray-500 line-clamp-2 mt-2 font-light leading-relaxed">
-                                                    {(language === 'ar' && item.description_ar) ? item.description_ar : item.description}
+                                                    {language === "ar" && item.description_ar
+                                                        ? item.description_ar
+                                                        : item.description}
                                                 </p>
                                             </div>
                                             <div className="flex items-center justify-between mt-3">
                                                 <span className="font-serif font-bold text-[#D4AF37] text-lg">
                                                     {"DA"} {item.price.toFixed(2)}
                                                 </span>
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform shadow-lg shadow-[#1a1a2e]/20 ${item.isAvailable ? 'bg-[#1a1a2e] text-[#D4AF37] group-hover:scale-110' : 'bg-gray-200 text-gray-400'}`}>
+                                                <div
+                                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform shadow-lg shadow-[#1a1a2e]/20 ${item.isAvailable
+                                                        ? "bg-[#1a1a2e] text-[#D4AF37] group-hover:scale-110"
+                                                        : "bg-gray-200 text-gray-400"
+                                                        }`}
+                                                >
                                                     <Plus className="w-4 h-4" />
                                                 </div>
                                             </div>
@@ -682,10 +785,14 @@ export default function CustomerMenuPage() {
                                     {/* Badges */}
                                     <div className="absolute top-3 left-3 flex gap-1">
                                         {item.tags?.includes("Spicy") && (
-                                            <span className="bg-red-50 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-100">{t("spicy")}</span>
+                                            <span className="bg-red-50 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-100">
+                                                {t("spicy")}
+                                            </span>
                                         )}
                                         {Math.random() > 0.7 && (
-                                            <span className="bg-[#D4AF37] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">{t("chefs_special")}</span>
+                                            <span className="bg-[#D4AF37] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                                                {t("chefs_special")}
+                                            </span>
                                         )}
                                     </div>
                                 </div>
@@ -719,17 +826,23 @@ export default function CustomerMenuPage() {
             {cart.length === 0 && activeOrders && activeOrders.length > 0 && (
                 <div className="fixed bottom-6 left-4 right-4 z-50 max-w-2xl mx-auto flex justify-end">
                     <button
-                        onClick={() => setCurrentOrderId(activeOrders[activeOrders.length - 1]?._id)}
+                        onClick={() =>
+                            setCurrentOrderId(activeOrders[activeOrders.length - 1]?._id)
+                        }
                         className="bg-[#1a1a2e] text-[#D4AF37] px-4 py-3 rounded-full shadow-xl border border-[#D4AF37]/30 flex items-center gap-3 hover:scale-105 transition-transform animate-bounce-slow"
                         style={{ zIndex: 9999 }}
                     >
                         <Clock className="w-5 h-5" />
                         <div className="flex flex-col items-start">
-                            <span className="text-[10px] text-gray-400 uppercase tracking-wider leading-none mb-0.5">{t("active_order")}</span>
+                            <span className="text-[10px] text-gray-400 uppercase tracking-wider leading-none mb-0.5">
+                                {t("active_order")}
+                            </span>
                             <span className="font-bold text-sm leading-none">
                                 {(() => {
                                     const lastOrder = activeOrders[activeOrders.length - 1];
-                                    return lastOrder?.status ? getStatusLabel(lastOrder.status) : '';
+                                    return lastOrder?.status
+                                        ? getStatusLabel(lastOrder.status)
+                                        : "";
                                 })()}
                             </span>
                         </div>
@@ -745,16 +858,27 @@ export default function CustomerMenuPage() {
             >
                 <div className="space-y-6 pb-40">
                     {cart.map((item, index) => (
-                        <div key={index} className={`flex gap-4 py-6 ${index !== cart.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                        <div
+                            key={index}
+                            className={`flex gap-4 py-6 ${index !== cart.length - 1 ? "border-b border-gray-100" : ""
+                                }`}
+                        >
                             {item.imageUrl && (
                                 <div className="w-24 h-24 relative rounded-xl overflow-hidden flex-shrink-0 bg-gray-50">
-                                    <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                                    <Image
+                                        src={item.imageUrl}
+                                        alt={item.name}
+                                        fill
+                                        className="object-cover"
+                                    />
                                 </div>
                             )}
                             <div className="flex-1 min-w-0 flex flex-col justify-between">
                                 <div>
                                     <div className="flex justify-between items-start mb-2">
-                                        <h3 className="font-serif font-bold text-[#1a1a2e] text-lg leading-tight pr-4">{item.name}</h3>
+                                        <h3 className="font-serif font-bold text-[#1a1a2e] text-lg leading-tight pr-4">
+                                            {item.name}
+                                        </h3>
                                         <span className="text-sm text-gray-500 whitespace-nowrap">
                                             DA {item.price.toFixed(2)}
                                         </span>
@@ -762,7 +886,9 @@ export default function CustomerMenuPage() {
 
                                     {/* Main Item Quantity Control */}
                                     <div className="flex items-center gap-4 mt-2 mb-3">
-                                        <span className="text-gray-500 text-sm font-medium">{t("quantity") || "Qty"}:</span>
+                                        <span className="text-gray-500 text-sm font-medium">
+                                            {t("quantity") || "Qty"}:
+                                        </span>
                                         <div className="flex items-center gap-3">
                                             <button
                                                 onClick={() => handleUpdateCartQuantity(index, -1)}
@@ -770,7 +896,9 @@ export default function CustomerMenuPage() {
                                             >
                                                 <Minus className="w-4 h-4" />
                                             </button>
-                                            <span className="w-8 text-center font-bold text-[#1a1a2e] text-lg">{item.quantity}</span>
+                                            <span className="w-8 text-center font-bold text-[#1a1a2e] text-lg">
+                                                {item.quantity}
+                                            </span>
                                             <button
                                                 onClick={() => handleUpdateCartQuantity(index, 1)}
                                                 className="w-8 h-8 rounded-full bg-[#D4AF37] flex items-center justify-center hover:bg-[#c4a027] text-white shadow-md shadow-[#D4AF37]/20 transition-all hover:scale-105"
@@ -784,22 +912,35 @@ export default function CustomerMenuPage() {
                                     {item.modifiers && item.modifiers.length > 0 && (
                                         <div className="space-y-2 mt-2 pt-2 animate-in fade-in slide-in-from-top-1 duration-300">
                                             {item.modifiers.map((mod, i) => (
-                                                <div key={i} className="flex items-center justify-between pl-2 border-l-2 border-gray-100">
+                                                <div
+                                                    key={i}
+                                                    className="flex items-center justify-between pl-2 border-l-2 border-gray-100"
+                                                >
                                                     <div className="flex flex-col">
-                                                        <span className="text-sm text-gray-600">{mod.name}</span>
-                                                        <span className="text-xs text-[#D4AF37]">+{mod.price} DA</span>
+                                                        <span className="text-sm text-gray-600">
+                                                            {mod.name}
+                                                        </span>
+                                                        <span className="text-xs text-[#D4AF37]">
+                                                            +{mod.price} DA
+                                                        </span>
                                                     </div>
 
                                                     <div className="flex items-center gap-3">
                                                         <button
-                                                            onClick={() => handleUpdateCartModifierQuantity(index, i, -1)}
+                                                            onClick={() =>
+                                                                handleUpdateCartModifierQuantity(index, i, -1)
+                                                            }
                                                             className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center hover:bg-[#D4AF37]/10 text-gray-400 hover:text-[#D4AF37] transition-colors"
                                                         >
                                                             <Minus className="w-3 h-3" />
                                                         </button>
-                                                        <span className="w-4 text-center font-bold text-sm text-[#1a1a2e]">{mod.quantity}</span>
+                                                        <span className="w-4 text-center font-bold text-sm text-[#1a1a2e]">
+                                                            {mod.quantity}
+                                                        </span>
                                                         <button
-                                                            onClick={() => handleUpdateCartModifierQuantity(index, i, 1)}
+                                                            onClick={() =>
+                                                                handleUpdateCartModifierQuantity(index, i, 1)
+                                                            }
                                                             className="w-6 h-6 rounded-full bg-[#D4AF37]/10 flex items-center justify-center hover:bg-[#D4AF37] hover:text-white text-[#D4AF37] transition-all"
                                                         >
                                                             <Plus className="w-3 h-3" />
@@ -810,13 +951,26 @@ export default function CustomerMenuPage() {
                                         </div>
                                     )}
 
-                                    {item.notes && <p className="text-sm text-gray-500 mt-2 italic pl-2 border-l-2 border-yellow-200/50">"{item.notes}"</p>}
+                                    {item.notes && (
+                                        <p className="text-sm text-gray-500 mt-2 italic pl-2 border-l-2 border-yellow-200/50">
+                                            "{item.notes}"
+                                        </p>
+                                    )}
 
                                     {/* Line Total */}
                                     <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-100">
-                                        <span className="text-sm font-medium text-gray-600">Line Total:</span>
+                                        <span className="text-sm font-medium text-gray-600">
+                                            Line Total:
+                                        </span>
                                         <span className="font-bold text-[#D4AF37] text-lg">
-                                            DA {((item.price * item.quantity) + (item.modifiers?.reduce((sum, m) => sum + (m.price * m.quantity), 0) || 0)).toFixed(2)}
+                                            DA{" "}
+                                            {(
+                                                item.price * item.quantity +
+                                                (item.modifiers?.reduce(
+                                                    (sum, m) => sum + m.price * m.quantity,
+                                                    0
+                                                ) || 0)
+                                            ).toFixed(2)}
                                         </span>
                                     </div>
                                 </div>
@@ -833,9 +987,8 @@ export default function CustomerMenuPage() {
                                         className="px-3 py-1 rounded-lg text-sm font-medium text-amber-600 border border-amber-200 hover:bg-amber-50 hover:border-amber-300 transition-colors"
                                     >
                                         {item.modifiers && item.modifiers.length > 0
-                                            ? (t("edit_extras") || "Edit Extras")
-                                            : (t("add_extras") || "Add Extras")
-                                        }
+                                            ? t("edit_extras") || "Edit Extras"
+                                            : t("add_extras") || "Add Extras"}
                                     </button>
                                 </div>
                             </div>
@@ -846,7 +999,9 @@ export default function CustomerMenuPage() {
                 {cart.length > 0 && (
                     <div className="absolute bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-10">
                         <div className="flex justify-between items-center mb-6">
-                            <span className="text-gray-500 font-serif">{t("total_amount")}</span>
+                            <span className="text-gray-500 font-serif">
+                                {t("total_amount")}
+                            </span>
                             <span className="text-3xl font-serif font-bold text-[#1a1a2e]">
                                 {"DA"} {cartTotal.toFixed(2)}
                             </span>
@@ -873,31 +1028,43 @@ export default function CustomerMenuPage() {
                         onClick={() => handleCallWaiter("bill")}
                         className="flex items-center gap-4 p-5 rounded-2xl bg-[#f5f3f0] border border-transparent hover:border-[#D4AF37] hover:bg-white hover:shadow-lg transition-all group"
                     >
-                        <span className="text-3xl group-hover:scale-110 transition-transform">💳</span>
-                        <div className={`text-left ${direction === 'rtl' ? 'text-right' : ''}`}>
-                            <div className="font-serif font-bold text-[#1a1a2e]">{t("request_bill")}</div>
-                            <div className="text-xs text-gray-500">{t("ready_to_settle")}</div>
+                        <span className="text-3xl group-hover:scale-110 transition-transform">
+                            💳
+                        </span>
+                        <div
+                            className={`text-left ${direction === "rtl" ? "text-right" : ""}`}
+                        >
+                            <div className="font-serif font-bold text-[#1a1a2e]">
+                                {t("request_bill")}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                                {t("ready_to_settle")}
+                            </div>
                         </div>
                     </button>
                     <button
                         onClick={() => handleCallWaiter("help")}
                         className="flex items-center gap-4 p-5 rounded-2xl bg-[#f5f3f0] border border-transparent hover:border-[#D4AF37] hover:bg-white hover:shadow-lg transition-all group"
                     >
-                        <span className="text-3xl group-hover:scale-110 transition-transform">🛎️</span>
-                        <div className={`text-left ${direction === 'rtl' ? 'text-right' : ''}`}>
-                            <div className="font-serif font-bold text-[#1a1a2e]">{t("call_server")}</div>
-                            <div className="text-xs text-gray-500">{t("general_assistance")}</div>
+                        <span className="text-3xl group-hover:scale-110 transition-transform">
+                            🛎️
+                        </span>
+                        <div
+                            className={`text-left ${direction === "rtl" ? "text-right" : ""}`}
+                        >
+                            <div className="font-serif font-bold text-[#1a1a2e]">
+                                {t("call_server")}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                                {t("general_assistance")}
+                            </div>
                         </div>
                     </button>
                 </div>
             </Modal>
 
             {/* Table Selector Modal */}
-            <Modal
-                isOpen={showTableSelector}
-                onClose={() => { }}
-                title={t("welcome")}
-            >
+            <Modal isOpen={showTableSelector} onClose={() => { }} title={t("welcome")}>
                 <div className="space-y-6 text-center">
                     <div className="w-16 h-16 bg-[#D4AF37]/10 rounded-full flex items-center justify-center mx-auto mb-2">
                         <Star className="w-8 h-8 text-[#D4AF37]" />
@@ -926,69 +1093,97 @@ export default function CustomerMenuPage() {
                 isOpen={!!selectedItem}
                 onClose={() => setSelectedItem(null)}
                 title={t("item_details")}
-                headerContent={selectedItem && (
-                    <div className="space-y-6 pb-4 pt-2">
-                        {selectedItem.imageUrl && (
-                            <div className="w-full h-64 relative rounded-2xl overflow-hidden shadow-2xl">
-                                <Image src={selectedItem.imageUrl} alt={selectedItem.name} fill className="object-cover" />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                                <div className="absolute bottom-4 left-4 text-white">
-                                    <h2 className="text-3xl font-serif font-bold">{selectedItem.name}</h2>
+                headerContent={
+                    selectedItem && (
+                        <div className="space-y-6 pb-4 pt-2">
+                            {selectedItem.imageUrl && (
+                                <div className="w-full h-64 relative rounded-2xl overflow-hidden shadow-2xl">
+                                    <Image
+                                        src={selectedItem.imageUrl}
+                                        alt={selectedItem.name}
+                                        fill
+                                        className="object-cover"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                                    <div className="absolute bottom-4 left-4 text-white">
+                                        <h2 className="text-3xl font-serif font-bold">
+                                            {selectedItem.name}
+                                        </h2>
+                                    </div>
+                                </div>
+                            )}
+
+                            {!selectedItem.imageUrl && (
+                                <h2 className="text-3xl font-serif font-bold text-[#1a1a2e] px-2">
+                                    {selectedItem.name}
+                                </h2>
+                            )}
+
+                            <div className="flex items-center justify-between border-b border-gray-100 pb-6 px-2">
+                                <span className="text-3xl font-serif font-bold text-[#D4AF37]">
+                                    {selectedItem.price.toFixed(2)} DA
+                                </span>
+                                <div
+                                    className="flex items-center gap-4 bg-white p-2 rounded-2xl shadow-sm border border-gray-100"
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setItemQuantity(Math.max(1, itemQuantity - 1))
+                                        }
+                                        className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-700"
+                                    >
+                                        <Minus className="w-4 h-4" />
+                                    </button>
+                                    <span className="text-xl font-bold w-8 text-center text-[#1a1a2e]">
+                                        {itemQuantity}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setItemQuantity(itemQuantity + 1)}
+                                        className="w-10 h-10 rounded-xl bg-[#D4AF37] flex items-center justify-center hover:bg-[#c4a027] transition-colors text-white shadow-sm"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                    </button>
                                 </div>
                             </div>
-                        )}
-
-                        {!selectedItem.imageUrl && (
-                            <h2 className="text-3xl font-serif font-bold text-[#1a1a2e] px-2">{selectedItem.name}</h2>
-                        )}
-
-                        <div className="flex items-center justify-between border-b border-gray-100 pb-6 px-2">
-                            <span className="text-3xl font-serif font-bold text-[#D4AF37]">
-                                {selectedItem.price.toFixed(2)} DA
-                            </span>
-                            <div className="flex items-center gap-4 bg-white p-2 rounded-2xl shadow-sm border border-gray-100" onPointerDown={(e) => e.stopPropagation()}>
-                                <button
-                                    type="button"
-                                    onClick={() => setItemQuantity(Math.max(1, itemQuantity - 1))}
-                                    className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-700"
-                                >
-                                    <Minus className="w-4 h-4" />
-                                </button>
-                                <span className="text-xl font-bold w-8 text-center text-[#1a1a2e]">{itemQuantity}</span>
-                                <button
-                                    type="button"
-                                    onClick={() => setItemQuantity(itemQuantity + 1)}
-                                    className="w-10 h-10 rounded-xl bg-[#D4AF37] flex items-center justify-center hover:bg-[#c4a027] transition-colors text-white shadow-sm"
-                                >
-                                    <Plus className="w-4 h-4" />
-                                </button>
-                            </div>
                         </div>
-                    </div>
-                )}
-                footer={selectedItem && (
-                    <Button
-                        type="button"
-                        onClick={handleInitialAddToCart}
-                        className="w-full h-14 text-lg font-serif tracking-wide animate-glow"
-                    >
-                        {t("add_to_order")} • {(selectedItem.price * itemQuantity).toFixed(2)} DA
-                    </Button>
-                )}
+                    )
+                }
+                footer={
+                    selectedItem && (
+                        <Button
+                            type="button"
+                            onClick={handleInitialAddToCart}
+                            className="w-full h-14 text-lg font-serif tracking-wide animate-glow"
+                        >
+                            {t("add_to_order")} •{" "}
+                            {(selectedItem.price * itemQuantity).toFixed(2)} DA
+                        </Button>
+                    )
+                }
             >
                 {selectedItem && (
                     <div className="space-y-8 pb-4">
-                        {(selectedItem.description || (language === 'ar' && selectedItem.description_ar)) && (
-                            <div className="space-y-2">
-                                <label className="text-sm font-bold text-[#1a1a2e] uppercase tracking-wider">{t("description")}</label>
-                                <p className="text-gray-700 leading-relaxed">
-                                    {(language === 'ar' && selectedItem.description_ar) ? selectedItem.description_ar : selectedItem.description}
-                                </p>
-                            </div>
-                        )}
+                        {(selectedItem.description ||
+                            (language === "ar" && selectedItem.description_ar)) && (
+                                <div className="space-y-2">
+                                    <label className="text-sm font-bold text-[#1a1a2e] uppercase tracking-wider">
+                                        {t("description")}
+                                    </label>
+                                    <p className="text-gray-700 leading-relaxed">
+                                        {language === "ar" && selectedItem.description_ar
+                                            ? selectedItem.description_ar
+                                            : selectedItem.description}
+                                    </p>
+                                </div>
+                            )}
 
                         <div className="space-y-3">
-                            <label className="text-sm font-bold text-[#1a1a2e] uppercase tracking-wider">{t("special_instructions")}</label>
+                            <label className="text-sm font-bold text-[#1a1a2e] uppercase tracking-wider">
+                                {t("special_instructions")}
+                            </label>
                             <textarea
                                 value={itemNotes}
                                 onChange={(e) => setItemNotes(e.target.value)}

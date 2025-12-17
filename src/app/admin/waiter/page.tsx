@@ -48,6 +48,25 @@ export default function WaiterPage() {
         return <div className="p-8 text-center">Loading Waiter Dashboard...</div>;
     }
 
+    // Security check: Suspended or Expired
+    const isSuspended = restaurant?.subscriptionStatus === "suspended";
+    const isExpired = restaurant?.subscriptionExpiresAt && Date.now() > restaurant.subscriptionExpiresAt;
+
+    if (isSuspended || isExpired) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-100 p-6 text-center">
+                <div className="max-w-md space-y-4">
+                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto text-3xl">🚫</div>
+                    <h1 className="text-2xl font-bold text-gray-900">Restaurant Unavailable</h1>
+                    <p className="text-gray-600">
+                        This restaurant's subscription {isSuspended ? 'has been suspended' : 'has expired'}.
+                        Please contact the restaurant owner to resolve this issue.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     const dirtyTables = tables.filter((t: any) => t.status === "dirty");
 
     return (

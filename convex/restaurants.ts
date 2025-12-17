@@ -56,6 +56,8 @@ export const getMenu = query({
         currency: restaurant.currency,
         logoUrl: restaurant.logoUrl,
         settings: restaurant.settings,
+        subscriptionStatus: restaurant.subscriptionStatus,
+        subscriptionExpiresAt: restaurant.subscriptionExpiresAt,
       },
       categories: categoriesWithItems,
       modifiers: activeModifiers,

@@ -1,15 +1,17 @@
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ModalProps {
     isOpen: boolean;
     onClose: () => void;
     children: React.ReactNode;
     title?: string;
+    className?: string;
 }
 
-export function Modal({ isOpen, onClose, children, title }: ModalProps) {
+export function Modal({ isOpen, onClose, children, title, className }: ModalProps) {
     return (
         <AnimatePresence>
             {isOpen && (
@@ -25,9 +27,12 @@ export function Modal({ isOpen, onClose, children, title }: ModalProps) {
                         initial={{ scale: 0.95, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0.95, opacity: 0 }}
-                        className="bg-white rounded-2xl shadow-xl w-full max-w-sm relative z-10 overflow-hidden"
+                        className={cn(
+                            "bg-white rounded-2xl shadow-xl w-full max-w-lg relative z-10 overflow-hidden max-h-[90vh] flex flex-col",
+                            className
+                        )}
                     >
-                        <div className="flex items-center justify-between p-4 border-b border-gray-100">
+                        <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0">
                             <h2 className="text-lg font-bold text-gray-900">{title}</h2>
                             <button
                                 onClick={onClose}
@@ -36,7 +41,7 @@ export function Modal({ isOpen, onClose, children, title }: ModalProps) {
                                 <X className="w-5 h-5 text-gray-500" />
                             </button>
                         </div>
-                        <div className="p-4">
+                        <div className="p-4 overflow-y-auto">
                             {children}
                         </div>
                     </motion.div>
