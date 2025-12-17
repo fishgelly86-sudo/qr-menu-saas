@@ -38,7 +38,8 @@ export default function SuperAdminRestaurants() {
                 name: form.name,
                 slug: form.slug,
                 ownerEmail: form.email,
-                passwordHash: hashedPassword
+                passwordHash: hashedPassword,
+                secretKey: process.env.NEXT_PUBLIC_SUPER_ADMIN_SECRET || "temp-secret-key",
             });
 
             setForm({ name: "", slug: "", email: "", password: "" });
@@ -61,7 +62,8 @@ export default function SuperAdminRestaurants() {
 
             await updatePassword({
                 restaurantId,
-                passwordHash: hashedPassword
+                passwordHash: hashedPassword,
+                secretKey: process.env.NEXT_PUBLIC_SUPER_ADMIN_SECRET || "temp-secret-key",
             });
 
             alert("Password updated successfully");
