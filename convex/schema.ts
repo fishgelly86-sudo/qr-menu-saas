@@ -24,6 +24,7 @@ const applicationTables = {
     // Manual Auth Fields
     ownerEmail: v.optional(v.string()),
     passwordHash: v.optional(v.string()),
+    passwordChangedAt: v.optional(v.number()),
     isAcceptingOrders: v.optional(v.boolean()),
   }).index("by_slug", ["slug"])
     .index("by_owner", ["ownerId"]),

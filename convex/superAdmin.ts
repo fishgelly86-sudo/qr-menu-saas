@@ -83,6 +83,7 @@ export const updateRestaurantPassword = mutation({
 
         await ctx.db.patch(args.restaurantId, {
             passwordHash: args.passwordHash,
+            passwordChangedAt: Date.now(),
         });
 
         return { success: true };

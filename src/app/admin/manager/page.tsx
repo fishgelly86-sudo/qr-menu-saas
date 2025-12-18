@@ -6,26 +6,11 @@ import { api } from "../../../../convex/_generated/api";
 import { CheckCircle, Clock, Coffee, DollarSign, Printer, X, Trash2 } from "lucide-react";
 import clsx from "clsx";
 import { useState } from "react";
+import { useRestaurant } from "./layout";
 
 export default function AdminDashboard() {
-    // Dynamic Restaurant Loading (Support for Login As)
-    const [restaurantSlug, setRestaurantSlug] = useState(() => {
-        if (typeof window !== 'undefined') {
-            const adminSession = localStorage.getItem("admin_session");
-            const searchParams = new URLSearchParams(window.location.search);
-            if (searchParams.get("from") === "superadmin" && adminSession) {
-                try {
-                    const session = JSON.parse(adminSession);
-                    return session.slug;
-                } catch (e) {
-                    console.error("Invalid admin session", e);
-                }
-            }
-        }
-        return "burger-bistro"; // Fallback to default for demo
-    });
-
-    const restaurant = useQuery(api.restaurants.getRestaurantBySlug, { slug: restaurantSlug }) as any;
+    // Use shared restaurant context from layout
+    const { restaurant } = useRestaurant();
 
     const [currentTime, setCurrentTime] = useState(Date.now());
 

@@ -19,7 +19,9 @@ export default function SuperAdminClaimPage() {
             const result = await claimSuperAdmin({ secretKey: secret });
             setStatus(result.message);
             if (result.message.includes("successfully") || result.message.includes("Already")) {
-                setTimeout(() => router.push("/admin/super"), 1000);
+                // Store the validated secret in sessionStorage for dashboard authentication
+                sessionStorage.setItem("superadmin_key", secret);
+                setTimeout(() => router.push("/admin/superuser"), 1000);
             }
         } catch (error: any) {
             setStatus("Error: " + error.message);

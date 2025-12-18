@@ -2,21 +2,31 @@
 
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Id } from "../../../../convex/_generated/dataModel";
 import bcrypt from 'bcryptjs';
 import { useRouter } from "next/navigation";
 import { Plus, Search, Key, Pencil, Trash2, Building2, Users, Shield, TrendingUp, AlertTriangle } from "lucide-react";
 
 export default function SuperAdminPage() {
+    const router = useRouter();
+
+    // Check authentication on mount
+    useEffect(() => {
+        const sessionKey = sessionStorage.getItem("superadmin_key");
+        const expectedKey = process.env.NEXT_PUBLIC_SUPER_ADMIN_SECRET;
+
+        if (!sessionKey || sessionKey !== expectedKey) {
+            router.push("/admin/superuser/login");
+        }
+    }, [router]);
+
     const restaurants = useQuery(api.subscriptions.listAllRestaurants);
     const updateRestaurant = useMutation(api.superAdmin.updateRestaurantDetails);
+    const updatePassword = useMutation(api.superAdmin.updateRestaurantPassword);
     const createRestaurant = useMutation(api.superAdmin.createRestaurant);
-    const deleteRestaurant = useMutation(api.superAdmin.deleteRestaurant); // Make sure this is imported/defined
+    const deleteRestaurant = useMutation(api.superAdmin.deleteRestaurant);
     const generateToken = useMutation(api.superAdmin.generateImpersonationToken);
-
-    const router = useRouter();
-    const [secretKey, setSecretKey] = useState("");
 
     const [editingRestaurant, setEditingRestaurant] = useState<any | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -27,7 +37,8 @@ export default function SuperAdminPage() {
         slug: "",
         plan: "basic",
         status: "active",
-        expiryDays: 30
+        expiryDays: 30,
+        newPassword: ""
     });
 
     // Create Form State
@@ -50,16 +61,17 @@ export default function SuperAdminPage() {
             slug: restaurant.slug,
             plan: restaurant.plan || "basic",
             status: restaurant.subscriptionStatus || "active",
-            expiryDays: days > 0 ? days : 0
+            expiryDays: days > 0 ? days : 0,
+            newPassword: ""
         });
     };
 
-    // Helper to get or prompt secret
-    const getOrPromptSecret = () => {
-        let key = secretKey;
+    // Helper to get secret from environment
+    const getSecret = () => {
+        const key = process.env.NEXT_PUBLIC_SUPER_ADMIN_SECRET;
         if (!key) {
-            key = prompt("Enter Super Admin Secret Key to verify action:") || "";
-            if (key) setSecretKey(key);
+            alert("Super admin secret is not configured. Please add NEXT_PUBLIC_SUPER_ADMIN_SECRET to .env.local");
+            return null;
         }
         return key;
     };
@@ -67,12 +79,13 @@ export default function SuperAdminPage() {
     const handleSaveRestaurant = async () => {
         if (!editingRestaurant) return;
 
-        const key = getOrPromptSecret();
+        const key = getSecret();
         if (!key) return;
 
         const expiresAt = Date.now() + formData.expiryDays * 24 * 60 * 60 * 1000;
 
         try {
+            // Update restaurant details
             await updateRestaurant({
                 restaurantId: editingRestaurant._id,
                 name: formData.name,
@@ -83,12 +96,20 @@ export default function SuperAdminPage() {
                 secretKey: key,
             });
 
-            alert("Restaurant updated successfully");
+            // Update password if provided
+            if (formData.newPassword && formData.newPassword.trim() !== "") {
+                const hashedPassword = await bcrypt.hash(formData.newPassword, 10);
+                await updatePassword({
+                    restaurantId: editingRestaurant._id,
+                    passwordHash: hashedPassword,
+                    secretKey: key,
+                });
+            }
+
+            alert("Restaurant updated successfully" + (formData.newPassword ? " (including password)" : ""));
             setEditingRestaurant(null);
         } catch (error: any) {
             alert("Error updating restaurant: " + error.message);
-            // If auth failed, maybe clear cached key?
-            if (error.message.includes("secret")) setSecretKey("");
         }
     };
 
@@ -105,7 +126,7 @@ export default function SuperAdminPage() {
             return;
         }
 
-        const key = getOrPromptSecret();
+        const key = getSecret();
         if (!key) return;
 
         try {
@@ -114,7 +135,6 @@ export default function SuperAdminPage() {
             setEditingRestaurant(null);
         } catch (error: any) {
             alert("Error deleting restaurant: " + error.message);
-            if (error.message.includes("secret")) setSecretKey("");
         }
     };
 
@@ -124,7 +144,7 @@ export default function SuperAdminPage() {
             return;
         }
 
-        const key = getOrPromptSecret();
+        const key = getSecret();
         if (!key) return;
 
         try {
@@ -143,17 +163,12 @@ export default function SuperAdminPage() {
             setCreateFormData({ name: "", slug: "", email: "", password: "" });
         } catch (error: any) {
             alert("Error creating restaurant: " + error.message);
-            if (error.message.includes("secret")) setSecretKey("");
         }
     };
 
     const handleLoginAs = async (restaurantId: Id<"restaurants">) => {
-        let key = secretKey;
-        if (!key) {
-            key = prompt("Enter Super Admin Secret Key to impersonate:") || "";
-            if (!key) return;
-            setSecretKey(key); // Cache it for session
-        }
+        const key = getSecret();
+        if (!key) return;
 
         try {
             const result = await generateToken({ restaurantId, secretKey: key });
@@ -165,7 +180,6 @@ export default function SuperAdminPage() {
             }
         } catch (error: any) {
             alert("Impersonation failed: " + error.message);
-            setSecretKey(""); // Clear invalid key
         }
     };
 
@@ -414,6 +428,19 @@ export default function SuperAdminPage() {
                                             />
                                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">days</span>
                                         </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-700 uppercase tracking-wide mb-1.5">
+                                            New Password <span className="text-gray-400 normal-case">(optional)</span>
+                                        </label>
+                                        <input
+                                            type="password"
+                                            value={formData.newPassword}
+                                            onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
+                                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-gray-900"
+                                            placeholder="Leave empty to keep current password"
+                                        />
                                     </div>
                                 </div>
 

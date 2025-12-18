@@ -118,11 +118,32 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         if (activeRestaurant) {
+            // Check for subscription issues
             const isSuspended = activeRestaurant.subscriptionStatus === "suspended";
             const isExpired = activeRestaurant.subscriptionExpiresAt && Date.now() > activeRestaurant.subscriptionExpiresAt;
 
             if (isSuspended || isExpired) {
                 router.push("/admin/subscription-expired");
+                return;
+            }
+
+            // Check if password was changed (session invalidation)
+            const sessionStr = localStorage.getItem("admin_session");
+            if (sessionStr) {
+                try {
+                    const session = JSON.parse(sessionStr);
+                    // If restaurant has passwordChangedAt and session has loginTime
+                    if (activeRestaurant.passwordChangedAt && session.loginTime) {
+                        // If password was changed after this session was created, logout
+                        if (activeRestaurant.passwordChangedAt > session.loginTime) {
+                            localStorage.removeItem("admin_session");
+                            alert("Your password was changed. Please log in again.");
+                            router.push("/admin/login");
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error checking session validity", e);
+                }
             }
         }
     }, [activeRestaurant, router]);
