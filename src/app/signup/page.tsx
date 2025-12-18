@@ -8,7 +8,7 @@ export default function SignupPage() {
 
     useEffect(() => {
         // Redirect to login - signup is disabled for security
-        router.push("/login");
+        router.push("/admin/login");
     }, [router]);
 
     return (
@@ -29,7 +29,7 @@ export default function SignupPage() {
                         </p>
                     </div>
                     <button
-                        onClick={() => router.push("/login")}
+                        onClick={() => router.push("/admin/login")}
                         className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
                     >
                         Back to Login

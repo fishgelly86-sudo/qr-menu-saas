@@ -25,7 +25,7 @@ export default function SubscriptionExpiredPage() {
                     </p>
 
                     <button
-                        onClick={() => router.push("/login")}
+                        onClick={() => router.push("/admin/login")}
                         className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold rounded-lg shadow-lg transition"
                     >
                         Back to Login

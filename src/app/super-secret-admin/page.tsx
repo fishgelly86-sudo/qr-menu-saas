@@ -33,7 +33,7 @@ export default function SuperAdminClaimPage() {
             <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
                 <p>Please log in first before accessing this page.</p>
                 <button
-                    onClick={() => router.push("/login")}
+                    onClick={() => router.push("/admin/login")}
                     className="ml-4 px-4 py-2 bg-blue-600 rounded hover:bg-blue-700"
                 >
                     Login

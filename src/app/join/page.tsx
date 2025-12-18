@@ -88,7 +88,7 @@ function JoinContent() {
                     <h1 className="text-2xl font-bold text-white mb-4">Invalid Invite</h1>
                     <p className="text-gray-300 mb-6">{error}</p>
                     <button
-                        onClick={() => router.push("/login")}
+                        onClick={() => router.push("/admin/login")}
                         className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
                     >
                         Go to Login
