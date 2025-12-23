@@ -14,9 +14,8 @@ export default function SuperAdminPage() {
     // Check authentication on mount
     useEffect(() => {
         const sessionKey = sessionStorage.getItem("superadmin_key");
-        const expectedKey = process.env.NEXT_PUBLIC_SUPER_ADMIN_SECRET;
 
-        if (!sessionKey || sessionKey !== expectedKey) {
+        if (!sessionKey) {
             router.push("/admin/superuser/login");
         }
     }, [router]);
@@ -68,9 +67,10 @@ export default function SuperAdminPage() {
 
     // Helper to get secret from environment
     const getSecret = () => {
-        const key = process.env.NEXT_PUBLIC_SUPER_ADMIN_SECRET;
+        const key = sessionStorage.getItem("superadmin_key");
         if (!key) {
-            alert("Super admin secret is not configured. Please add NEXT_PUBLIC_SUPER_ADMIN_SECRET to .env.local");
+            alert("Session expired. Please login again.");
+            router.push("/admin/superuser/login");
             return null;
         }
         return key;

@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
 import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
@@ -7,6 +10,7 @@ import { Shield, Plus, Key, Loader2, AlertCircle } from "lucide-react";
 import bcrypt from "bcryptjs";
 
 export default function SuperAdminRestaurants() {
+    const router = useRouter();
     const restaurants = useQuery(api.superAdmin.listRestaurants);
     const createRestaurant = useMutation(api.superAdmin.createRestaurant);
     const updatePassword = useMutation(api.superAdmin.updateRestaurantPassword);
@@ -20,6 +24,14 @@ export default function SuperAdminRestaurants() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
 
+    // Check authentication on mount
+    useEffect(() => {
+        const sessionKey = sessionStorage.getItem("superadmin_key");
+        if (!sessionKey) {
+            router.push("/admin/superuser/login");
+        }
+    }, [router]);
+
     // Create New Restaurant
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -31,6 +43,9 @@ export default function SuperAdminRestaurants() {
                 throw new Error("All fields are required");
             }
 
+            const sessionKey = sessionStorage.getItem("superadmin_key");
+            if (!sessionKey) throw new Error("Authentication failed: No session key found");
+
             const salt = await bcrypt.genSalt(10);
             const hashedPassword = await bcrypt.hash(form.password, salt);
 
@@ -39,7 +54,7 @@ export default function SuperAdminRestaurants() {
                 slug: form.slug,
                 ownerEmail: form.email,
                 passwordHash: hashedPassword,
-                secretKey: process.env.NEXT_PUBLIC_SUPER_ADMIN_SECRET || "temp-secret-key",
+                secretKey: sessionKey,
             });
 
             setForm({ name: "", slug: "", email: "", password: "" });
@@ -57,13 +72,16 @@ export default function SuperAdminRestaurants() {
         if (!newPassword) return;
 
         try {
+            const sessionKey = sessionStorage.getItem("superadmin_key");
+            if (!sessionKey) throw new Error("Authentication failed");
+
             const salt = await bcrypt.genSalt(10);
             const hashedPassword = await bcrypt.hash(newPassword, salt);
 
             await updatePassword({
                 restaurantId,
                 passwordHash: hashedPassword,
-                secretKey: process.env.NEXT_PUBLIC_SUPER_ADMIN_SECRET || "temp-secret-key",
+                secretKey: sessionKey,
             });
 
             alert("Password updated successfully");
