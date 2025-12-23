@@ -20,7 +20,10 @@ export const listRestaurants = query({
 // Helper to check secret
 function checkAdminKey(providedKey: string) {
     const expectedSecret = process.env.SUPER_ADMIN_SECRET;
-    if (!expectedSecret) throw new Error("Super admin secret not configured");
+    if (!expectedSecret) {
+        console.log("DEBUG: SUPER_ADMIN_SECRET missing in superAdmin.ts");
+        throw new Error("Super admin secret not configured");
+    }
     if (providedKey !== expectedSecret) throw new Error("Invalid super admin secret key");
 }
 

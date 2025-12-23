@@ -72,8 +72,9 @@ export const claimSuperAdmin = mutation({
         // Check against environment variable
         // Set SUPER_ADMIN_SECRET in your Convex dashboard environment variables
         const expectedSecret = process.env.SUPER_ADMIN_SECRET;
+        console.log("DEBUG: SUPER_ADMIN_SECRET is:", expectedSecret); // Log to function logs
         if (!expectedSecret) {
-            throw new Error("Super admin secret not configured");
+            throw new Error("Super admin secret not configured in environment variables");
         }
 
         if (args.secretKey !== expectedSecret) {
