@@ -19,21 +19,21 @@ export default function SuperAdminLoginPage() {
         setLoading(true);
 
         try {
-            // Validate secret key against environment variable
-            const expectedKey = process.env.NEXT_PUBLIC_SUPER_ADMIN_SECRET;
+            // Call the backend to validate the secret key
+            const response = await fetch('/api/superadmin/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ secretKey }),
+            });
 
-            if (!expectedKey) {
-                setError("Super Admin access is not configured");
-                setLoading(false);
-                return;
-            }
+            const data = await response.json();
 
-            if (secretKey === expectedKey) {
-                // Store in session storage (not localStorage for security)
+            if (response.ok && data.success) {
+                // Store in session storage
                 sessionStorage.setItem("superadmin_key", secretKey);
                 router.push("/admin/superuser");
             } else {
-                setError("Invalid secret key");
+                setError(data.error || "Invalid secret key");
                 setLoading(false);
             }
         } catch (err) {
