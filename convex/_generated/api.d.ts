@@ -30,6 +30,7 @@ import type * as restaurants from "../restaurants.js";
 import type * as router from "../router.js";
 import type * as security from "../security.js";
 import type * as seedData from "../seedData.js";
+import type * as sessions from "../sessions.js";
 import type * as staff from "../staff.js";
 import type * as staffList from "../staffList.js";
 import type * as subscriptions from "../subscriptions.js";
@@ -68,6 +69,7 @@ declare const fullApi: ApiFromModules<{
   router: typeof router;
   security: typeof security;
   seedData: typeof seedData;
+  sessions: typeof sessions;
   staff: typeof staff;
   staffList: typeof staffList;
   subscriptions: typeof subscriptions;

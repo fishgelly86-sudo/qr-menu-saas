@@ -14,6 +14,7 @@ export async function POST(req: Request) {
         const orderId = await client.mutation(api.orders.createOrder, {
             restaurantId: body.restaurantId,
             tableNumber: body.tableNumber,
+            sessionId: body.sessionId,
             items: body.items,
             customerId: body.customerId
         });
@@ -21,8 +22,12 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true, orderId });
     } catch (error: any) {
         // Determine status code
-        const status = error.message.includes("closed") ? 403 :
-            error.message.includes("Invalid") ? 400 : 500;
+        const status =
+            error.message.includes("closed") ? 403 :
+                error.message.includes("Invalid table") ? 400 :
+                    error.message.includes("session expired") ? 401 :
+                        error.message.includes("No active session") ? 401 :
+                            error.message.includes("Table is not active") ? 403 : 500;
 
         return NextResponse.json(
             { success: false, error: error.message || "Internal Server Error" },

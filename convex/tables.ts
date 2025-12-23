@@ -61,9 +61,15 @@ export const updateTableStatus = mutation({
     status: v.union(v.literal("free"), v.literal("occupied"), v.literal("payment_pending"), v.literal("dirty")),
   },
   handler: async (ctx, args) => {
+    // SECURITY: Fetch table first to get restaurantId for session invalidation
+    const table = await ctx.db.get(args.tableId);
+    if (!table) throw new Error("Table not found");
+
     await ctx.db.patch(args.tableId, { status: args.status });
 
-    // If table is marked free, close the tab (mark orders as paid) and archive them
+    // If table is marked free:
+    // 1. Close the tab (mark orders as paid) and archive them
+    // 2. Expire any active sessions for this table
     if (args.status === "free") {
       const activeOrders = await ctx.db
         .query("orders")
@@ -72,12 +78,25 @@ export const updateTableStatus = mutation({
 
       for (const order of activeOrders) {
         if (!order.isArchived) {
-          // Close the tab by marking order as paid, then archive it
           await ctx.db.patch(order._id, {
             status: "paid",
             isArchived: true
           });
         }
+      }
+
+      // Expire active sessions for this table
+      const activeSessions = await ctx.db
+        .query("tableSessions")
+        .withIndex("by_restaurant_table_active", (q: any) =>
+          q.eq("restaurantId", table.restaurantId)
+            .eq("tableId", args.tableId)
+            .eq("status", "active")
+        )
+        .collect();
+
+      for (const session of activeSessions) {
+        await ctx.db.patch(session._id, { status: "expired" });
       }
     }
 
@@ -117,6 +136,20 @@ export const resetAllTables = mutation({
             isArchived: true
           });
         }
+      }
+
+      // Expire active sessions for this table
+      const activeSessions = await ctx.db
+        .query("tableSessions")
+        .withIndex("by_restaurant_table_active", (q: any) =>
+          q.eq("restaurantId", args.restaurantId)
+            .eq("tableId", table._id)
+            .eq("status", "active")
+        )
+        .collect();
+
+      for (const session of activeSessions) {
+        await ctx.db.patch(session._id, { status: "expired" });
       }
     }
 

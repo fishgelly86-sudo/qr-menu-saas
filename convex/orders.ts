@@ -2,11 +2,13 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireRestaurantManager } from "./utils";
 import { checkRateLimit } from "./security";
+import { validateSessionInternal } from "./sessions";
 
 export const createOrder = mutation({
   args: {
     restaurantId: v.id("restaurants"),
     tableNumber: v.string(),
+    sessionId: v.string(), // Required for security
     items: v.array(v.object({
       menuItemId: v.string(),
       quantity: v.number(),
@@ -17,127 +19,70 @@ export const createOrder = mutation({
       })))
     })),
     customerId: v.optional(v.id("customers")),
+    location: v.optional(v.object({
+      latitude: v.number(),
+      longitude: v.number(),
+    })),
   },
   handler: async (ctx, args) => {
-    // SECURITY CHECKS
-    // 0. Rate Limiting
-    const clientIp = (ctx as any).clientIp || "unknown-ip";
-    // Note: clientIp might need to be passed from client or retrieved via specific Convex helper if available. 
-    // For now, we'll try to use a user identifier if logged in, or a fallback.
-    // Actually, Convex doesn't expose IP directly easily without custom actions. 
-    // We can use a combination of restaurantId and tableNumber as a throttle key OR a user ID if present.
-
-    // Better approach: Throttle by Table Number to prevent table spam
-    await checkRateLimit(ctx, `order_creation:${args.restaurantId}:${args.tableNumber}`, "create_order", 5, 60 * 1000); // 5 orders per minute per table
-    // 1. Check Restaurant Status (Toggle)
-    const restaurant = await ctx.db.get(args.restaurantId);
-    if (restaurant) {
-      if (restaurant.isAcceptingOrders === false) {
-        throw new Error("Restaurant is currently closed.");
-      }
-      if (restaurant.isAcceptingOrders === true) {
-        // Restaurant is explicitly open, skip manager check
-      } else {
-        // Fallback to legacy Manager Online check
-        const managers = await ctx.db
-          .query("managers")
-          .withIndex("by_restaurant", (q) => q.eq("restaurantId", args.restaurantId))
-          .collect();
-
-        const now = Date.now();
-        const isOnline = managers.some(m => m.isOnline && m.sessionExpiresAt > now);
-
-        if (!isOnline) {
-          throw new Error("Restaurant is currently closed. Please ask a waiter for assistance.");
-        }
-      }
-    } else {
-      throw new Error("Restaurant not found");
-    }
-
-    // Look up table by restaurantId and tableNumber
-    const existingTable = await ctx.db
+    // SECURITY 1: Session Validation
+    // Look up table by restaurantId and tableNumber first to get tableId
+    const table = await ctx.db
       .query("tables")
       .withIndex("by_restaurant_and_number", (q) =>
         q.eq("restaurantId", args.restaurantId).eq("number", args.tableNumber)
       )
       .first();
 
-    let tableId;
-
-    if (existingTable) {
-      tableId = existingTable._id;
-    } else {
-      // Create new table if it doesn't exist
-      tableId = await ctx.db.insert("tables", {
-        restaurantId: args.restaurantId,
-        number: args.tableNumber,
-        status: "occupied",
-      });
+    if (!table) {
+      throw new Error("Table not found. Please scan a valid QR code.");
     }
 
-    // Check if there's an existing draft order for this table
-    let existingOrder = await ctx.db
-      .query("orders")
-      .withIndex("by_table_and_status", (q) =>
-        q.eq("tableId", tableId).eq("status", "pending")
-      )
-      .first();
+    // VALIDATE SESSION (Server-side enforcement)
+    await validateSessionInternal(ctx, args.restaurantId, table._id, args.sessionId);
 
-    let orderId;
+    // SECURITY 2: Rate Limiting
+    // Throttle by Session ID to prevent spam from a single session
+    await checkRateLimit(ctx, `order_creation:${args.sessionId}`, "create_order", 5, 60 * 1000);
 
-    if (existingOrder) {
-      // Use existing order
-      orderId = existingOrder._id;
-    } else {
-      // Create new order
-      orderId = await ctx.db.insert("orders", {
-        restaurantId: args.restaurantId,
-        tableId: tableId,
-        status: "pending", // Initial status verified
-        totalAmount: 0, // Will be calculated below
-        customerId: args.customerId,
-      });
-
-      // Update table status to occupied if it was existing
-      if (existingTable) {
-        await ctx.db.patch(tableId, { status: "occupied" });
-      }
+    // SECURITY 3: Order Item Validation
+    if (args.items.length === 0) {
+      throw new Error("Cannot place an empty order.");
     }
+
+    let orderId = await ctx.db.insert("orders", {
+      restaurantId: args.restaurantId,
+      tableId: table._id,
+      status: "pending",
+      totalAmount: 0,
+      customerId: args.customerId,
+    });
 
     // Add order items
-    let totalAmount = existingOrder?.totalAmount || 0;
+    let totalAmount = 0;
     const addedAt = Date.now();
 
     for (const item of args.items) {
-      // Security 2: Input Validation
-      if (item.quantity < 1 || item.quantity > 999) {
-        throw new Error("Invalid quantity (1-999).");
-      }
-      if (item.notes && item.notes.length > 500) {
-        throw new Error("Notes max length exceeded (500 chars).");
+      // Input Validation
+      if (item.quantity < 1 || item.quantity > 99) {
+        throw new Error("Invalid quantity (1-99).");
       }
 
-      // Try to get menu item
       const dbItem = await ctx.db.get(item.menuItemId as any);
-
-      if (!dbItem) {
+      if (!dbItem || (dbItem as any).restaurantId !== args.restaurantId) {
         throw new Error(`Item ${item.menuItemId} not found`);
       }
 
-      // Check availability if it has that field (menu items)
       if ('isAvailable' in dbItem && !dbItem.isAvailable) {
         throw new Error(`Menu item ${dbItem.name} is not available`);
       }
 
-      // Calculate modifiers total and validate them
       let modifiersTotal = 0;
       if (item.modifiers) {
         for (const mod of item.modifiers) {
           const modifier: any = await ctx.db.get(mod.modifierId as any);
-          if (!modifier) {
-            console.warn(`Modifier ${mod.modifierId} not found, skipping price calculation`);
-            continue;
+          if (!modifier || modifier.restaurantId !== args.restaurantId) {
+            throw new Error(`Modifier ${mod.modifierId} not found`);
           }
           modifiersTotal += modifier.price * mod.quantity;
         }
@@ -155,7 +100,6 @@ export const createOrder = mutation({
       totalAmount += ((dbItem as any).price * item.quantity) + modifiersTotal;
     }
 
-    // Update order total
     await ctx.db.patch(orderId, { totalAmount });
 
     return orderId;

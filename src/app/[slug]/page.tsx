@@ -16,6 +16,7 @@ import {
     CheckCircle2,
     X,
     Clock,
+    AlertTriangle,
 } from "lucide-react";
 
 // UI Components
@@ -80,6 +81,9 @@ export default function CustomerMenuPage() {
     const [showTableSelector, setShowTableSelector] = useState(false);
     const [tableInput, setTableInput] = useState("");
 
+    const [sessionId, setSessionId] = useState<string | null>(null);
+    const [sessionError, setSessionError] = useState<string | null>(null);
+
     const [cart, setCart] = useState<CartItem[]>([]);
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
     const [itemQuantity, setItemQuantity] = useState(1);
@@ -128,6 +132,12 @@ export default function CustomerMenuPage() {
         activeOrderIds.length > 0 ? { orderIds: activeOrderIds as any } : "skip"
     );
     const callWaiter = useMutation(api.waiterCalls.callWaiter);
+    const createSession = useMutation(api.sessions.createTableSession);
+    const refreshSession = useMutation(api.sessions.refreshSession);
+    const sessionStatusCheck = useQuery(
+        api.sessions.getSessionStatus,
+        sessionId ? { sessionId } : "skip"
+    );
 
     // Security: Check Manager Status
     const managerStatus = useQuery(
@@ -135,14 +145,79 @@ export default function CustomerMenuPage() {
         menu?.restaurant?._id ? { restaurantId: menu.restaurant._id } : "skip"
     );
 
+
+
     // Effects
+    useEffect(() => {
+        const storedSessionId = localStorage.getItem("tableSessionId");
+        if (storedSessionId) {
+            setSessionId(storedSessionId);
+        }
+    }, []);
+
     useEffect(() => {
         if (!tableParam) {
             setShowTableSelector(true);
         } else {
             setTableNumber(tableParam);
+            // If we have a table number but no session, or table changed, create/refresh session
+            handleSessionInit(tableParam);
         }
-    }, [tableParam]);
+    }, [tableParam, menu?.restaurant?._id]);
+
+    const handleSessionInit = async (tNum: string) => {
+        if (!menu?.restaurant?._id) return;
+
+        let currentSId = localStorage.getItem("tableSessionId");
+        if (!currentSId) {
+            currentSId = Math.random().toString(36).substring(2) + Date.now().toString(36);
+        }
+
+        try {
+            const result = await createSession({
+                restaurantId: menu.restaurant._id,
+                tableNumber: tNum,
+                sessionId: currentSId,
+            });
+
+            if (result.sessionId) {
+                setSessionId(result.sessionId);
+                localStorage.setItem("tableSessionId", result.sessionId);
+                setSessionError(null);
+            }
+        } catch (error: any) {
+            setSessionError(error.message);
+        }
+    };
+
+    // Watch for session expiration from query
+    useEffect(() => {
+        if (sessionStatusCheck?.status === "expired") {
+            setSessionError((t as any)("session_expired_msg") || "Your session has expired. Please scan the QR code again.");
+        }
+    }, [sessionStatusCheck, t]);
+
+    // Session Heartbeat: Refresh every 5 minutes to prevent timeout
+    useEffect(() => {
+        if (!sessionId) return;
+
+        const HEARTBEAT_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+        const intervalId = setInterval(async () => {
+            try {
+                const result = await refreshSession({ sessionId });
+                if (!result.success) {
+                    console.warn("Session refresh failed:", result.error);
+                    // Don't show error to user, they'll see it when trying to place order
+                }
+            } catch (error) {
+                console.error("Session heartbeat error:", error);
+            }
+        }, HEARTBEAT_INTERVAL);
+
+        return () => clearInterval(intervalId);
+    }, [sessionId, refreshSession]);
+
 
     // Load active orders from local storage on mount
     useEffect(() => {
@@ -444,6 +519,13 @@ export default function CustomerMenuPage() {
     const handlePlaceOrder = async () => {
         if (!tableNumber || cart.length === 0 || !menu?.restaurant?._id) return;
 
+        if (!sessionId) {
+            showToast((t as any)("initializing_session") || "Initializing session... please wait.", "error");
+            // Try to re-init if missing
+            if (tableNumber) handleSessionInit(tableNumber);
+            return;
+        }
+
         try {
             const items = cart.map((item) => ({
                 menuItemId: item.menuItemId as any,
@@ -462,6 +544,7 @@ export default function CustomerMenuPage() {
                 body: JSON.stringify({
                     restaurantId: menu.restaurant._id,
                     tableNumber: tableNumber,
+                    sessionId: sessionId,
                     items,
                 }),
             });
@@ -577,6 +660,31 @@ export default function CustomerMenuPage() {
                 restaurantId={menu.restaurant._id}
                 onStartNewOrder={() => setCurrentOrderId(null)}
             />
+        );
+    }
+
+    // Session Error UI
+    if (sessionError) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#f5f3f0] p-6 text-center">
+                <div className="max-w-md space-y-4 bg-white p-8 rounded-3xl shadow-xl border border-red-100">
+                    <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto text-red-500">
+                        <AlertTriangle size={32} />
+                    </div>
+                    <h1 className="text-2xl font-serif font-bold text-[#1a1a2e]">
+                        {(t as any)("session_error_title") || "Ordering Disabled"}
+                    </h1>
+                    <p className="text-gray-600">
+                        {sessionError}
+                    </p>
+                    <Button
+                        onClick={() => window.location.reload()}
+                        className="w-full mt-4"
+                    >
+                        {(t as any)("retry") || "Retry"}
+                    </Button>
+                </div>
+            </div>
         );
     }
 

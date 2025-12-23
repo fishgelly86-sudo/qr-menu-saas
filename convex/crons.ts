@@ -9,4 +9,10 @@ crons.daily(
     internal.orders.internalArchiveAllCompletedOrders
 );
 
+crons.daily(
+    "cleanup-expired-sessions-daily",
+    { hourUTC: 3, minuteUTC: 0 },
+    internal.sessions.internalCleanupExpiredSessions
+);
+
 export default crons;
