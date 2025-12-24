@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { action, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { compare } from "bcryptjs";
 
 /**
  * Fetch restaurant auth details (Internal, so hash isn't exposed publicly by default)
@@ -44,8 +45,13 @@ export const login = action({
             throw new Error("Invalid credentials");
         }
 
-        // 2. Compare password (Plain text fallback for dev)
-        const isValid = args.password === credentials.passwordHash;
+        // 2. Compare password (Hash check first, then plain text fallback)
+        let isValid = await compare(args.password, credentials.passwordHash);
+
+        if (!isValid) {
+            // Fallback for plain text (for old dev data)
+            isValid = args.password === credentials.passwordHash;
+        }
 
         if (!isValid) {
             throw new Error("Invalid credentials");

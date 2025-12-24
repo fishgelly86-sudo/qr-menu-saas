@@ -132,10 +132,13 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             if (sessionStr) {
                 try {
                     const session = JSON.parse(sessionStr);
-                    // If restaurant has passwordChangedAt and session has loginTime
-                    if (activeRestaurant.passwordChangedAt && session.loginTime) {
+                    // Determine session start time (either login or impersonation)
+                    const sessionStartTime = session.impersonatedAt || session.loginTime;
+
+                    // If restaurant has passwordChangedAt and session has a start time
+                    if (activeRestaurant.passwordChangedAt && sessionStartTime) {
                         // If password was changed after this session was created, logout
-                        if (activeRestaurant.passwordChangedAt > session.loginTime) {
+                        if (activeRestaurant.passwordChangedAt > sessionStartTime) {
                             localStorage.removeItem("admin_session");
                             alert("Your password was changed. Please log in again.");
                             router.push("/admin/login");

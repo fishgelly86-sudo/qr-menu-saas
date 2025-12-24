@@ -34,6 +34,7 @@ export default function SuperAdminPage() {
     const [formData, setFormData] = useState({
         name: "",
         slug: "",
+        email: "",
         plan: "basic",
         status: "active",
         expiryDays: 30,
@@ -58,6 +59,7 @@ export default function SuperAdminPage() {
         setFormData({
             name: restaurant.name,
             slug: restaurant.slug,
+            email: restaurant.ownerEmail || "",
             plan: restaurant.plan || "basic",
             status: restaurant.subscriptionStatus || "active",
             expiryDays: days > 0 ? days : 0,
@@ -90,6 +92,7 @@ export default function SuperAdminPage() {
                 restaurantId: editingRestaurant._id,
                 name: formData.name,
                 slug: formData.slug,
+                ownerEmail: formData.email,
                 plan: formData.plan,
                 subscriptionStatus: formData.status as any,
                 subscriptionExpiresAt: expiresAt,
@@ -388,6 +391,16 @@ export default function SuperAdminPage() {
                                             <AlertTriangle className="w-3 h-3" />
                                             Warning: Changing this breaks existing QR codes!
                                         </p>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-700 uppercase tracking-wide mb-1.5">Owner Email</label>
+                                        <input
+                                            type="email"
+                                            value={formData.email}
+                                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-gray-900"
+                                        />
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-4">

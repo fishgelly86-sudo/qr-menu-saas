@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
-import { Shield, Plus, Key, Loader2, AlertCircle } from "lucide-react";
+import { Shield, Plus, Key, Loader2, AlertCircle, Edit, X } from "lucide-react";
 import bcrypt from "bcryptjs";
 
 export default function SuperAdminRestaurants() {
@@ -14,6 +14,15 @@ export default function SuperAdminRestaurants() {
     const restaurants = useQuery(api.superAdmin.listRestaurants);
     const createRestaurant = useMutation(api.superAdmin.createRestaurant);
     const updatePassword = useMutation(api.superAdmin.updateRestaurantPassword);
+    const updateRestaurant = useMutation(api.superAdmin.updateRestaurantDetails);
+
+    // Edit State
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editForm, setEditForm] = useState({
+        name: "",
+        slug: "",
+        email: "",
+    });
 
     const [form, setForm] = useState({
         name: "",
@@ -216,14 +225,24 @@ export default function SuperAdminRestaurants() {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <button
-                                                onClick={() => handleResetPassword(restaurant._id, restaurant.name)}
-                                                className="text-gray-400 hover:text-white flex items-center gap-1 ml-auto text-sm transition-colors"
-                                                title="Reset Password"
-                                            >
-                                                <Key className="h-4 w-4" />
-                                                Reset Password
-                                            </button>
+                                            <div className="flex items-center justify-end gap-3">
+                                                <button
+                                                    onClick={() => handleEditClick(restaurant)}
+                                                    className="text-gray-400 hover:text-indigo-400 flex items-center gap-1 text-sm transition-colors"
+                                                    title="Edit Details"
+                                                >
+                                                    <Edit className="h-4 w-4" />
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    onClick={() => handleResetPassword(restaurant._id, restaurant.name)}
+                                                    className="text-gray-400 hover:text-white flex items-center gap-1 text-sm transition-colors"
+                                                    title="Reset Password"
+                                                >
+                                                    <Key className="h-4 w-4" />
+                                                    Reset Password
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -231,6 +250,59 @@ export default function SuperAdminRestaurants() {
                         </table>
                     </div>
                 </div>
+                {/* Edit Modal */}
+                {editingId && (
+                    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+                        <div className="bg-gray-900 rounded-xl border border-gray-800 w-full max-w-md p-6 relative">
+                            <button
+                                onClick={() => setEditingId(null)}
+                                className="absolute top-4 right-4 text-gray-400 hover:text-white"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+
+                            <h2 className="text-xl font-bold mb-6">Edit Restaurant</h2>
+
+                            <form onSubmit={handleUpdate} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">Name</label>
+                                    <input
+                                        type="text"
+                                        value={editForm.name}
+                                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                        className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">Slug</label>
+                                    <input
+                                        type="text"
+                                        value={editForm.slug}
+                                        onChange={(e) => setEditForm({ ...editForm, slug: e.target.value })}
+                                        className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">Owner Email</label>
+                                    <input
+                                        type="email"
+                                        value={editForm.email}
+                                        onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                                        className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white"
+                                    />
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-medium mt-4"
+                                >
+                                    {isLoading ? "Saving..." : "Save Changes"}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

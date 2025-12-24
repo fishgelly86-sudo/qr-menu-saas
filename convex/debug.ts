@@ -26,3 +26,17 @@ export const debugOwnership = query({
         };
     },
 });
+
+export const inspectUser = query({
+    args: {},
+    handler: async (ctx) => {
+        // Just dump all authAccounts to see what we have
+        const accounts = await ctx.db.query("authAccounts").collect();
+        return accounts.map((a: any) => ({
+            id: a._id,
+            provider: a.provider,
+            providerAccountId: a.providerAccountId,
+            userId: a.userId
+        }));
+    },
+});
