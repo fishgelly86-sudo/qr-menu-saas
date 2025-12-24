@@ -47,10 +47,45 @@ export const createRestaurant = mutation({
         }
 
         // Create the restaurant
+        // 1. Check or Create User
+        let userId: string;
+        const existingUser = await ctx.db
+            .query("users")
+            .withIndex("email", (q) => q.eq("email", args.ownerEmail))
+            .first();
+
+        if (existingUser) {
+            userId = existingUser._id;
+        } else {
+            userId = await ctx.db.insert("users", {
+                email: args.ownerEmail,
+                name: args.name, // Default name to restaurant name roughly
+                image: args.ownerEmail,
+            });
+        }
+
+        // 2. Create Auth Account (Login)
+        // Check if auth account exists for this provider/id
+        const existingAuth = await ctx.db
+            .query("authAccounts")
+            .withIndex("providerAndAccountId", (q) =>
+                q.eq("provider", "password").eq("providerAccountId", args.ownerEmail)
+            )
+            .first();
+
+        if (!existingAuth) {
+            await ctx.db.insert("authAccounts", {
+                provider: "password",
+                providerAccountId: args.ownerEmail,
+                secret: args.passwordHash,
+                userId: userId as any,
+            });
+        }
+
         const restaurantId = await ctx.db.insert("restaurants", {
             name: args.name,
             slug: args.slug,
-            ownerId: "pending", // Will be set when owner claims it
+            ownerId: userId, // Set actual owner ID
             currency: "DA",
             ownerEmail: args.ownerEmail,
             passwordHash: args.passwordHash,
@@ -62,6 +97,16 @@ export const createRestaurant = mutation({
             subscriptionExpiresAt: Date.now() + 14 * 24 * 60 * 60 * 1000, // 14 days trial
             plan: "basic",
             isAcceptingOrders: true,
+        });
+
+        // 3. Create Staff Entry
+        await ctx.db.insert("staff", {
+            userId: userId,
+            restaurantId: restaurantId,
+            role: "owner",
+            isActive: true,
+            email: args.ownerEmail,
+            name: args.name,
         });
 
         return restaurantId;
