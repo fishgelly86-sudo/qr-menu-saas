@@ -99,6 +99,43 @@ export default function SuperAdminRestaurants() {
         }
     };
 
+    // Edit Restaurant
+    const handleEditClick = (restaurant: any) => {
+        setEditingId(restaurant._id);
+        setEditForm({
+            name: restaurant.name,
+            slug: restaurant.slug,
+            email: restaurant.ownerEmail || "",
+        });
+    };
+
+    const handleUpdate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingId) return;
+        setError("");
+        setIsLoading(true);
+
+        try {
+            const sessionKey = sessionStorage.getItem("superadmin_key");
+            if (!sessionKey) throw new Error("Authentication failed");
+
+            await updateRestaurant({
+                restaurantId: editingId as any,
+                name: editForm.name,
+                slug: editForm.slug,
+                ownerEmail: editForm.email,
+                secretKey: sessionKey,
+            });
+
+            alert("Restaurant updated successfully!");
+            setEditingId(null);
+        } catch (err: any) {
+            setError(err.message || "Failed to update restaurant");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     if (restaurants === undefined) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
