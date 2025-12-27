@@ -208,33 +208,38 @@ export default function MenuManager() {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-12">
-            <header className="bg-white shadow">
-                <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <h1 className="text-3xl font-bold text-gray-900">Menu Management</h1>
-                    <div className="flex flex-wrap gap-2 sm:gap-3 w-full sm:w-auto">
-                        <Button
-                            variant="outline"
-                            onClick={() => setIsModifiersOpen(true)}
-                            className="text-gray-600 border-gray-300 hover:bg-gray-50 text-xs sm:text-sm flex-1 sm:flex-none"
-                        >
-                            <Edit className="w-4 h-4 mr-2" />
-                            Modifiers
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={() => setIsTrashOpen(true)}
-                            className="text-gray-600 border-gray-300 hover:bg-gray-50 text-xs sm:text-sm flex-1 sm:flex-none"
-                        >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Trash
-                        </Button>
-                        <Button
-                            onClick={() => setIsCategoryModalOpen(true)}
-                            className="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm flex-1 sm:flex-none"
-                        >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Add Category
-                        </Button>
+            <header className="bg-white shadow sticky top-0 z-20">
+                <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Menu</h1>
+                        <div className="flex flex-wrap gap-2 items-center">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsModifiersOpen(true)}
+                                className="text-gray-600 border-gray-300 hover:bg-gray-50 flex-1 sm:flex-none"
+                            >
+                                <Edit className="w-4 h-4 mr-2" />
+                                Modifiers
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsTrashOpen(true)}
+                                className="text-gray-600 border-gray-300 hover:bg-gray-50 flex-1 sm:flex-none"
+                            >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Trash
+                            </Button>
+                            <Button
+                                size="sm"
+                                onClick={() => setIsCategoryModalOpen(true)}
+                                className="bg-green-600 hover:bg-green-700 text-white flex-1 sm:flex-none"
+                            >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Category
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </header>

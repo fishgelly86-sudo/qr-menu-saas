@@ -115,25 +115,27 @@ export default function TablesPage() {
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
-      <header className="flex justify-between items-center mb-8">
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto pb-20">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Tables & QR Codes
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+            Tables & QR
           </h1>
-          <p className="text-gray-500">Manage your restaurant layout</p>
+          <p className="text-sm text-gray-500">Manage your layout</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
           <Button
             onClick={handleResetAllTables}
             variant="outline"
-            className="border-orange-300 text-orange-600 hover:bg-orange-50"
+            size="sm"
+            className="border-orange-300 text-orange-600 hover:bg-orange-50 shrink-0 flex-1 sm:flex-none"
           >
-            <RotateCcw className="w-4 h-4 mr-2" /> Reset All Tables
+            <RotateCcw className="w-4 h-4 mr-2" /> Reset
           </Button>
           <Button
             onClick={() => setIsModalOpen(true)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            size="sm"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 flex-1 sm:flex-none"
           >
             <Plus className="w-4 h-4 mr-2" /> Add Table
           </Button>
@@ -147,15 +149,14 @@ export default function TablesPage() {
             className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col items-center relative group"
           >
             <div
-              className={`absolute top-4 right-4 w-3 h-3 rounded-full ${
-                table.status === "free"
+              className={`absolute top-4 right-4 w-3 h-3 rounded-full ${table.status === "free"
                   ? "bg-green-500"
                   : table.status === "occupied"
                     ? "bg-red-500"
                     : table.status === "dirty"
                       ? "bg-yellow-500"
                       : "bg-blue-500"
-              }`}
+                }`}
               title={table.status}
             />
 
@@ -170,15 +171,14 @@ export default function TablesPage() {
               <select
                 value={table.status}
                 onChange={(e) => handleStatusChange(table._id, e.target.value)}
-                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                  table.status === "free"
+                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${table.status === "free"
                     ? "border-green-300 bg-green-50 text-green-700"
                     : table.status === "occupied"
                       ? "border-red-300 bg-red-50 text-red-700"
                       : table.status === "dirty"
                         ? "border-yellow-300 bg-yellow-50 text-yellow-700"
                         : "border-blue-300 bg-blue-50 text-blue-700"
-                }`}
+                  }`}
               >
                 <option value="free">Free</option>
                 <option value="occupied">Occupied</option>

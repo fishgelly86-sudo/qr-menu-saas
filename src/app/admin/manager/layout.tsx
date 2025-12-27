@@ -2,6 +2,7 @@
 import AdminSidebar from "@/components/AdminSidebar";
 import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { useRouter } from "next/navigation";
+import { Menu as MenuIcon } from "lucide-react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useEffect, useState } from "react";
 import { api } from "../../../../convex/_generated/api";
@@ -60,6 +61,7 @@ export function useRestaurant() {
 // Inner component to safely use queries
 function DashboardShell({ children }: { children: React.ReactNode }) {
     const router = useRouter();
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     // 2. Resolve Restaurant ID Strategy
     // Strategy A: Check for Impersonation Token
@@ -83,18 +85,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     const { isAuthenticated } = useConvexAuth();
     const myRestaurant = useQuery(api.restaurants.getMyRestaurant, isAuthenticated ? {} : "skip");
 
-    // Strategy C: Fetch Impersonated Restaurant (if token exists)
-    // We need a helper query for getting by ID. We can repurpose `getRestaurantByOwner` or just `checkSubscription`? 
-    // Actually, `api.restaurants.getRestaurantBySlug` is available but we have ID.
-    // Let's rely on a simple consistent query. Ideally `api.restaurants.getById(id)` but we don't have it explicitly exported perhaps?
-    // Let's use `checkSubscription` to get basic info? No, we need full info.
-    // Let's use `api.restaurants.getMyRestaurant` as base, but we really need a "getRestaurantById" for admin usage.
-    // Wait, we can use `listAllRestaurants` and filter? No too heavy.
-    // Let's use `getMenu` or similiar? No.
-    // Let's add `getRestaurantById` to `convex/restaurants.ts` or `convex/superAdmin.ts`?
-    // For now, let's assume `getMyRestaurant` is enough FOR OWNER. 
-    // FOR SUPERADMIN, the `admin_session` contains `slug`. So we can use `getRestaurantBySlug`.
-
     const [targetSlug, setTargetSlug] = useState<string | null>(null);
 
     useEffect(() => {
@@ -104,10 +94,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             if (session.slug) setTargetSlug(session.slug);
         }
     }, []);
-
-    // If targetSlug set (Impersonation), fetch that. Else fetch owned.
-    // NOTE: This logic is slightly complex because `getMyRestaurant` requires AUTH. Impersonation might not have AUTH if we are just a superuser?
-    // Actually superuser has AUTH.
 
     const impersonatedRestaurant = useQuery(api.restaurants.getRestaurantBySlug,
         targetSlug ? { slug: targetSlug } : "skip"
@@ -171,8 +157,21 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     return (
         <RestaurantContext.Provider value={{ restaurant: activeRestaurant, isLoading }}>
             <div className="flex min-h-screen bg-gray-50 relative">
-                <AdminSidebar />
-                <div className="flex-1 flex flex-col overflow-hidden">
+                <AdminSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+                <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                    {/* Mobile Header */}
+                    <header className="lg:hidden bg-white border-b border-gray-200 h-16 flex items-center px-4 shrink-0 z-30">
+                        <button
+                            onClick={() => setIsSidebarOpen(true)}
+                            className="p-2 -ml-2 rounded-md text-gray-500 hover:text-gray-900 focus:outline-none"
+                        >
+                            <MenuIcon className="h-6 w-6" />
+                        </button>
+                        <span className="ml-4 text-lg font-bold text-gray-900 truncate">
+                            {activeRestaurant?.name}
+                        </span>
+                    </header>
+
                     <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
                         {children}
                     </main>

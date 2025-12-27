@@ -121,14 +121,19 @@ export default function AdminDashboard() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gray-50 pb-10">
             <header className="bg-white shadow">
-                <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex justify-between items-center">
-                    <h1 className="text-3xl font-bold text-gray-900">
-                        {restaurant.name} Dashboard
-                    </h1>
-                    <div className="flex items-center gap-4">
-                        <div className="text-sm text-gray-500 hidden sm:block">
+                <div className="max-w-7xl mx-auto px-4 py-4 sm:py-6 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                            Dashboard
+                        </h1>
+                        <p className="text-sm text-gray-500 sm:hidden">
+                            {orders.length} Active Orders
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-3 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
+                        <div className="text-sm text-gray-500 hidden sm:block whitespace-nowrap">
                             {orders.length} Active Orders
                         </div>
                         <button
@@ -138,7 +143,7 @@ export default function AdminDashboard() {
                                     alert(`Cleared ${result.archivedCount} completed orders.`);
                                 }
                             }}
-                            className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-md border border-gray-200 transition-colors flex items-center gap-1"
+                            className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-md border border-gray-200 transition-colors flex items-center gap-1 whitespace-nowrap shrink-0"
                         >
                             <Trash2 className="w-3 h-3" />
                             Clear Dashboard
@@ -147,8 +152,8 @@ export default function AdminDashboard() {
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <main className="max-w-7xl mx-auto px-4 py-4 sm:py-6 sm:px-6 lg:px-8">
+                <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {orders.map((order: any) => (
                         <div key={order._id} className="bg-white overflow-hidden shadow rounded-lg flex flex-col relative group">
                             {/* Cancel Button */}
