@@ -117,6 +117,13 @@ export default function CustomerMenuPage() {
         Record<string, number>
     >({});
 
+    const [idempotencyKey, setIdempotencyKey] = useState<string>("");
+
+    useEffect(() => {
+        // Generate initial key
+        setIdempotencyKey(crypto.randomUUID());
+    }, []);
+
     const categoryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
     // Queries & Mutations
@@ -138,6 +145,7 @@ export default function CustomerMenuPage() {
         api.sessions.getSessionStatus,
         sessionId ? { sessionId } : "skip"
     );
+
 
     // Security: Check Manager Status
     const managerStatus = useQuery(
@@ -240,38 +248,38 @@ export default function CustomerMenuPage() {
     }, [activeOrderIds]);
 
     // Watch for archived or cancelled orders and clean up
-    // Watch for archived orders (Current View)
-    // Watch for archived orders (Current View)
     useEffect(() => {
-        /*
-            console.log("TrackedOrder Effect:", trackedOrder);
-            if (trackedOrder && trackedOrder.isArchived) {
-                console.log("Order is archived, clearing currentOrderId");
-                setCurrentOrderId(null);
-                showToast(t("table_cleared"), "success");
-            }
-            */
-    }, [trackedOrder]);
+        if (activeOrders) {
+            // Find orders that have been archived (cleared) by the manager
+            const archivedOrders = activeOrders.filter((o: any) => o.isArchived);
 
-    // Sync local history with valid backend orders
-    useEffect(() => {
-        /*
-            if (activeOrders) {
-                const validOrderIds = activeOrders.map((o: any) => o._id);
-                // Only update if lengths differ to avoid loops, but also check for content mismatch if needed
-                // Ideally we just set it to valid ones.
-                if (validOrderIds.length !== activeOrderIds.length) {
-                    // We don't want to remove the currentOrderId if it's just missing because of query lag
-                    // But activeOrders query SHOULD respond to activeOrderIds change.
-                    
-                    // Safe guard: if currentOrderId is in activeOrderIds but NOT in validOrderIds, 
-                    // it might mean it's archived OR data is stale. 
-                    // Since we check archived above with trackedOrder, we can be safer here.
-                    setActiveOrderIds(validOrderIds);
+            if (archivedOrders.length > 0) {
+                const archivedIds = archivedOrders.map((o: any) => o._id);
+
+                // Update local tracks to remove archived orders
+                setActiveOrderIds((prev) => {
+                    const newValue = prev.filter(id => !archivedIds.includes(id));
+                    // Only update if changed to avoid loops
+                    return newValue.length !== prev.length ? newValue : prev;
+                });
+
+                // If the currently viewed order was archived, clear it so we go back to menu
+                if (currentOrderId && archivedIds.includes(currentOrderId)) {
+                    setCurrentOrderId(null);
+                    showToast(t("table_cleared") || "Table cleared by staff", "success");
                 }
             }
-            */
-    }, [activeOrders, activeOrderIds]);
+        }
+    }, [activeOrders, currentOrderId, t]);
+
+    // Sync local history with valid backend orders (Optional safety check)
+    useEffect(() => {
+        if (activeOrders) {
+            const validOrderIds = activeOrders.map((o: any) => o._id);
+            // Only update if lengths differ significantly or we have ids in local that aren't in remote (and aren't just loading)
+            // For now, the archive check above handles the critical "Table Clear" case.
+        }
+    }, [activeOrders]);
 
     // No auto-clear for cancelled orders - let user dismiss manually via banner
 
@@ -538,6 +546,7 @@ export default function CustomerMenuPage() {
             }));
 
             // Use Secure API Route
+            // Use Secure API Route
             const response = await fetch("/api/orders", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -546,10 +555,19 @@ export default function CustomerMenuPage() {
                     tableNumber: tableNumber,
                     sessionId: sessionId,
                     items,
+                    idempotencyKey,
                 }),
             });
 
-            const data = await response.json();
+            // Parse text first to debug if JSON fails
+            const textHTML = await response.text();
+            let data;
+            try {
+                data = JSON.parse(textHTML);
+            } catch (e) {
+                console.error("Failed to parse JSON:", textHTML);
+                throw new Error("Server returned an invalid response. Please try again.");
+            }
 
             if (!response.ok) {
                 // Handle specific errors
@@ -567,7 +585,13 @@ export default function CustomerMenuPage() {
             setCart([]);
             setShowCart(false);
             setCurrentOrderId(orderId); // Start tracking
-            setActiveOrderIds((prev) => [...prev, orderId]); // Add to history
+            setActiveOrderIds((prev) => {
+                if (prev.includes(orderId)) return prev;
+                return [...prev, orderId];
+            });
+
+            // New cart = new key
+            setIdempotencyKey(crypto.randomUUID());
         } catch (error: any) {
             showToast(error.message, "error");
         }

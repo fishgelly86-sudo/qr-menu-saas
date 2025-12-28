@@ -146,16 +146,28 @@ export async function validateSessionInternal(
     tableId: Id<"tables">,
     sessionId: string
 ) {
+    // Optimized Validation: Look up by Table first (since we know the context)
+    // This avoids issues if the same sessionId exists for another table (stale data)
     const session = await ctx.db
         .query("tableSessions")
-        .withIndex("by_session", (q: any) => q.eq("sessionId", sessionId))
+        .withIndex("by_restaurant_table_active", (q: any) =>
+            q.eq("restaurantId", restaurantId)
+                .eq("tableId", tableId)
+                .eq("status", "active")
+        )
         .first();
 
-    if (!session) throw new Error("No active session found for this table. Please scan the QR code again.");
-    if (session.restaurantId !== restaurantId || session.tableId !== tableId) {
-        throw new Error("Invalid session for this table.");
+    if (!session) {
+        // Fallback: Check if it was expired recently to give better error
+        throw new Error("No active session found. Please scan the QR code again.");
     }
-    if (session.status === "expired") throw new Error("Session expired due to inactivity.");
+
+    if (session.sessionId !== sessionId) {
+        // The table has a session, but it doesn't match the one provided
+        throw new Error("Invalid session token. Please re-scan the QR code.");
+    }
+
+    // session is guaranteed active and matches context
 
     const restaurant = await ctx.db.get(restaurantId);
     if (!restaurant) throw new Error("Restaurant not found.");
@@ -171,8 +183,8 @@ export async function validateSessionInternal(
 
     // Check table status
     const table = await ctx.db.get(tableId);
-    if (!table || table.status === "free") {
-        throw new Error("Table is not active. Please ask a waiter to seat you.");
+    if (!table) { // removed table.status === "free" check
+        throw new Error("Table not found.");
     }
 
     // Update activity

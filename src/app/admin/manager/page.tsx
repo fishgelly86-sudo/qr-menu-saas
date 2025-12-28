@@ -5,7 +5,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { CheckCircle, Clock, Coffee, DollarSign, Printer, X, Trash2 } from "lucide-react";
 import clsx from "clsx";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRestaurant } from "./layout";
 
 export default function AdminDashboard() {
@@ -30,6 +30,46 @@ export default function AdminDashboard() {
     const cancelOrder = useMutation(api.orders.cancelOrder);
     const archiveCompletedOrders = useMutation(api.orders.archiveCompletedOrders);
 
+    // Group orders by Table for active sessions - MUST be called unconditionally
+    const groupedOrders = useMemo(() => {
+        return (orders ?? []).reduce((acc: any[], order: any) => {
+            // Find existing group for this table
+            const existingGroup = acc.find((g: any) => g.table?._id === order.table?._id);
+
+            if (existingGroup) {
+                existingGroup.orders.push(order);
+                existingGroup.items = [...existingGroup.items, ...order.items]; // Flatten items for now
+                existingGroup.totalAmount += order.totalAmount;
+
+                // Status priority: pending (needs attention) > preparing > ready > served > paid > cancelled
+                const statusPriority = ['pending', 'preparing', 'ready', 'served', 'paid', 'cancelled'];
+
+                const currentStatusIdx = statusPriority.indexOf(existingGroup.status);
+                const newStatusIdx = statusPriority.indexOf(order.status);
+
+                // If the new order needs more attention (lower index), update the group status
+                if (newStatusIdx < currentStatusIdx) {
+                    existingGroup.status = order.status;
+                }
+
+                existingGroup.isGroup = true;
+            } else {
+                acc.push({
+                    _id: order._id, // Use first order ID as key
+                    table: order.table,
+                    status: order.status,
+                    orders: [order],
+                    items: order.items,
+                    totalAmount: order.totalAmount,
+                    creationTime: order._creationTime,
+                    isGroup: false
+                });
+            }
+            return acc;
+        }, []);
+    }, [orders]);
+
+    // Early returns AFTER all hooks
     if (restaurant === undefined || orders === undefined) {
         return <div className="p-8 text-center">Loading dashboard...</div>;
     }
@@ -37,16 +77,6 @@ export default function AdminDashboard() {
     if (restaurant === null) {
         return <div className="p-8 text-center text-red-500">Restaurant not found. Please seed data.</div>;
     }
-
-    const handleStatusUpdate = async (orderId: any, newStatus: "pending" | "preparing" | "ready" | "served" | "paid") => {
-        await updateStatus({ orderId, status: newStatus });
-    };
-
-    const handleCancelOrder = async (orderId: any) => {
-        if (confirm("Are you sure you want to cancel this order?")) {
-            await cancelOrder({ orderId });
-        }
-    };
 
     const handlePrintReceipt = (order: any) => {
         const printWindow = window.open('', '_blank');
@@ -120,6 +150,21 @@ export default function AdminDashboard() {
         cancelled: "bg-red-100 text-red-800",
     };
 
+    const handleStatusUpdate = async (group: any, newStatus: "pending" | "preparing" | "ready" | "served" | "paid") => {
+        // Update all orders in the group into the new status
+        // BUT skip orders that are already paid or cancelled (don't regress them)
+        for (const order of group.orders) {
+            if (order.status === 'paid' || order.status === 'cancelled') continue;
+            await updateStatus({ orderId: order._id, status: newStatus });
+        }
+    };
+
+    const handleCancelOrder = async (orderId: any) => {
+        if (confirm("Are you sure you want to cancel this order?")) {
+            await cancelOrder({ orderId });
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 pb-10">
             <header className="bg-white shadow">
@@ -154,12 +199,17 @@ export default function AdminDashboard() {
 
             <main className="max-w-7xl mx-auto px-4 py-4 sm:py-6 sm:px-6 lg:px-8">
                 <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {orders.map((order: any) => (
-                        <div key={order._id} className="bg-white overflow-hidden shadow rounded-lg flex flex-col relative group">
-                            {/* Cancel Button */}
-                            {order.status !== "cancelled" && order.status !== "paid" && (
+                    {groupedOrders.map((group: any) => (
+                        <div key={group._id} className="bg-white overflow-hidden shadow rounded-lg flex flex-col relative group">
+                            {/* Cancel Button (Only if single order or handle logical cancellation of group?) */}
+                            {/* For now, allow cancelling individual orders if expanded, or just general cancel? 
+                                Let's keep it simple: Cancel affects the whole group? No, dangerous.
+                                Let's allow cancelling the *displayed* status. 
+                                Actually, for grouped orders, maybe we shouldn't show the quick X unless it's a single order.
+                            */}
+                            {!group.isGroup && group.status !== "cancelled" && group.status !== "paid" && (
                                 <button
-                                    onClick={() => handleCancelOrder(order._id)}
+                                    onClick={() => handleCancelOrder(group._id)}
                                     className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors z-10"
                                     title="Cancel Order"
                                 >
@@ -171,22 +221,23 @@ export default function AdminDashboard() {
                                 <div className="flex justify-between items-start mb-4">
                                     <div>
                                         <h3 className="text-lg font-medium text-gray-900">
-                                            Table {order.table?.number}
+                                            Table {group.table?.number}
                                         </h3>
                                         <p className="text-sm text-gray-500">
-                                            {new Date(order._creationTime).toLocaleTimeString()}
+                                            {new Date(group.creationTime).toLocaleTimeString()}
+                                            {group.orders.length > 1 && ` • ${group.orders.length} Orders`}
                                         </p>
                                     </div>
                                     <span className={clsx(
                                         "px-2 py-1 text-xs font-medium rounded-full",
-                                        statusColors[order.status as keyof typeof statusColors]
+                                        statusColors[group.status as keyof typeof statusColors]
                                     )}>
-                                        {order.status.toUpperCase()}
+                                        {group.status.toUpperCase()}
                                     </span>
                                 </div>
 
                                 <div className="space-y-3">
-                                    {order.items.map((item: any, idx: number) => (
+                                    {group.items.map((item: any, idx: number) => (
                                         <div key={idx} className="flex flex-col text-sm border-b border-gray-100 last:border-0 pb-2 last:pb-0">
                                             <div className="flex justify-between">
                                                 <div className="flex items-start gap-2">
@@ -223,53 +274,53 @@ export default function AdminDashboard() {
                                 <div className="mt-6 pt-4 border-t flex justify-between items-center">
                                     <span className={clsx(
                                         "font-bold text-lg",
-                                        order.status === "paid" ? "text-green-600" : "text-black"
+                                        group.status === "paid" ? "text-green-600" : "text-black"
                                     )}>
-                                        Total: {restaurant.currency} {order.totalAmount.toFixed(2)}
+                                        Total: {restaurant.currency} {group.totalAmount.toFixed(2)}
                                     </span>
                                 </div>
                             </div>
 
                             <div className="bg-gray-50 px-4 py-4 sm:px-6 flex gap-2 justify-end">
-                                {order.status === "pending" && (
+                                {group.status === "pending" && (
                                     <button
-                                        onClick={() => handleStatusUpdate(order._id, "preparing")}
+                                        onClick={() => handleStatusUpdate(group, "preparing")}
                                         className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                                     >
                                         <Coffee className="h-4 w-4 mr-1" />
                                         Start Preparing
                                     </button>
                                 )}
-                                {order.status === "preparing" && (
+                                {group.status === "preparing" && (
                                     <button
-                                        onClick={() => handleStatusUpdate(order._id, "ready")}
+                                        onClick={() => handleStatusUpdate(group, "ready")}
                                         className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
                                     >
                                         <CheckCircle className="h-4 w-4 mr-1" />
                                         Mark Ready
                                     </button>
                                 )}
-                                {order.status === "ready" && (
+                                {group.status === "ready" && (
                                     <button
-                                        onClick={() => handleStatusUpdate(order._id, "served")}
+                                        onClick={() => handleStatusUpdate(group, "served")}
                                         className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                                     >
                                         <CheckCircle className="h-4 w-4 mr-1" />
                                         Serve
                                     </button>
                                 )}
-                                {order.status === "served" && (
+                                {group.status === "served" && (
                                     <button
-                                        onClick={() => handleStatusUpdate(order._id, "paid")}
+                                        onClick={() => handleStatusUpdate(group, "paid")}
                                         className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                                     >
                                         <DollarSign className="h-4 w-4 mr-1" />
                                         Mark Paid
                                     </button>
                                 )}
-                                {order.status === "paid" && (
+                                {group.status === "paid" && (
                                     <button
-                                        onClick={() => handlePrintReceipt(order)}
+                                        onClick={() => handlePrintReceipt(group.orders[0])}
                                         className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                                     >
                                         <Printer className="h-4 w-4 mr-1" />

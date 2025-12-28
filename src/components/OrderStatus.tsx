@@ -161,7 +161,16 @@ export function OrderStatus({ order, tableNumber, restaurantId, onStartNewOrder 
                         variant="outline"
                         className="flex-1 border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37] hover:text-[#1a1a2e]"
                     >
-                        {t("start_new_order")}
+                        {(t as any)("browse_menu") || "Browse Menu"}
+                    </Button>
+                </div>
+                <div className="mt-4">
+                    <Button
+                        onClick={onStartNewOrder}
+                        variant="ghost"
+                        className="w-full text-xs text-[#D4AF37]/70 hover:text-[#D4AF37]"
+                    >
+                        + {(t as any)("add_more_items") || "Add more items"}
                     </Button>
                 </div>
             </div>

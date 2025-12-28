@@ -8,9 +8,16 @@ export async function POST(req: Request) {
     try {
         const body = await req.json();
 
-        // Additional validation could go here, but we implemented robust checks in the mutation itself.
+        // 1. Basic Validation
+        if (!body.restaurantId || !body.tableNumber || !body.items || body.items.length === 0) {
+            console.error("Validation failed: Missing required fields", body);
+            return NextResponse.json(
+                { success: false, error: "Missing required fields (restaurantId, tableNumber, or items)" },
+                { status: 400 }
+            );
+        }
 
-        // Call the Convex mutation
+        // 2. Call the Convex mutation
         const orderId = await client.mutation(api.orders.createOrder, {
             restaurantId: body.restaurantId,
             tableNumber: body.tableNumber,
@@ -21,16 +28,28 @@ export async function POST(req: Request) {
 
         return NextResponse.json({ success: true, orderId });
     } catch (error: any) {
-        // Determine status code
+        // 3. Log the full error
+        console.error("API Error in POST /api/orders:", error);
+
+        // 4. Determine status code based on error message
+        const errorMessage = String(error.message || "");
+
         const status =
-            error.message.includes("closed") ? 403 :
-                error.message.includes("Invalid table") ? 400 :
-                    error.message.includes("session expired") ? 401 :
-                        error.message.includes("No active session") ? 401 :
-                            error.message.includes("Table is not active") ? 403 : 500;
+            errorMessage.includes("closed") ? 403 :
+                errorMessage.includes("Invalid table") ? 400 :
+                    errorMessage.includes("session expired") ? 401 :
+                        errorMessage.includes("No active session") ? 401 :
+                            errorMessage.includes("Invalid session token") ? 401 : // Added
+                                errorMessage.includes("Table is not active") ? 403 :
+                                    errorMessage.includes("Cannot place an empty order") ? 400 :
+                                        errorMessage.includes("Invalid quantity") ? 400 :
+                                            errorMessage.includes("not found") ? 404 :
+                                                errorMessage.includes("not available") ? 409 :
+                                                    errorMessage.includes("Rate limit") ? 429 :
+                                                        errorMessage.includes("Validator error") ? 400 : 500; // Catch validation errors
 
         return NextResponse.json(
-            { success: false, error: error.message || "Internal Server Error" },
+            { success: false, error: errorMessage || "Internal Server Error" },
             { status }
         );
     }

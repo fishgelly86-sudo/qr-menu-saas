@@ -103,10 +103,13 @@ const applicationTables = {
     totalAmount: v.number(),
     customerId: v.optional(v.id("customers")),
     isArchived: v.optional(v.boolean()),
+    idempotencyKey: v.optional(v.string()), // For preventing duplicate orders
+    printedAt: v.optional(v.number()), // For kitchen printer status
   }).index("by_restaurant", ["restaurantId"])
     .index("by_table", ["tableId"])
     .index("by_restaurant_and_status", ["restaurantId", "status"])
-    .index("by_table_and_status", ["tableId", "status"]),
+    .index("by_table_and_status", ["tableId", "status"])
+    .index("by_restaurant_and_aaa_idempotency", ["restaurantId", "idempotencyKey"]), // Unique constraint per restaurant context
 
   orderItems: defineTable({
     orderId: v.id("orders"),
