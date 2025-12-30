@@ -24,29 +24,61 @@ const translations = {
 };
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-    const [language, setLanguageState] = useState<Language>("en");
+    const pathname = usePathname();
+    const isManager = pathname?.startsWith("/admin/manager");
+    const isAdmin = pathname?.startsWith("/admin");
+
+    const [language, setLanguageState] = useState<Language>(() => {
+        if (typeof window !== "undefined") {
+            const savedLang = localStorage.getItem("language") as Language;
+            const managerLang = localStorage.getItem("manager_language") as Language;
+            const isMan = window.location.pathname.startsWith("/admin/manager");
+
+            if (isMan) {
+                return managerLang || "ar";
+            }
+            if (savedLang && (savedLang === "en" || savedLang === "ar")) {
+                return savedLang;
+            }
+        }
+        return "en";
+    });
 
     useEffect(() => {
         // Check local storage or browser preference
         const savedLang = localStorage.getItem("language") as Language;
-        if (savedLang && (savedLang === "en" || savedLang === "ar")) {
+        const managerLang = localStorage.getItem("manager_language") as Language;
+
+        if (isManager) {
+            if (managerLang) {
+                setLanguageState(managerLang);
+            } else {
+                // Default to Arabic for manager side
+                setLanguageState("ar");
+                localStorage.setItem("manager_language", "ar");
+                localStorage.setItem("language", "ar");
+            }
+        } else if (savedLang && (savedLang === "en" || savedLang === "ar")) {
             setLanguageState(savedLang);
         }
-    }, []);
+    }, [isManager]);
 
     const setLanguage = (lang: Language) => {
         setLanguageState(lang);
         localStorage.setItem("language", lang);
+        if (isManager) {
+            localStorage.setItem("manager_language", lang);
+        }
     };
 
-    const pathname = usePathname();
-    const isAdmin = pathname?.startsWith("/admin");
-    const direction = (language === "ar" && !isAdmin) ? "rtl" : "ltr";
+    // Allow RTL for manager side (and other admin if needed)
+    // Previously restricted all admin to LTR
+    const direction = language === "ar" ? "rtl" : "ltr";
 
     useEffect(() => {
-        document.documentElement.lang = isAdmin ? "en" : language;
+        document.documentElement.lang = language;
         document.documentElement.dir = direction;
-    }, [language, direction, isAdmin]);
+    }, [language, direction]);
 
     const t = (key: keyof Translations, params?: Record<string, string>) => {
         let text = translations[language][key] || translations["en"][key] || key;

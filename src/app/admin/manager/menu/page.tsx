@@ -42,9 +42,12 @@ function AdminItemImage({ item }: { item: any }) {
 
 
 
+import { useLanguage } from "@/contexts/LanguageContext";
+
 export default function MenuManager() {
     // 1. Get restaurant from Context
     const { restaurant } = useRestaurant();
+    const { t } = useLanguage();
     const restaurantSlug = restaurant?.slug;
 
     const menu = useQuery(api.restaurants.getAdminMenu, restaurantSlug ? { restaurantSlug } : "skip");
@@ -176,27 +179,27 @@ export default function MenuManager() {
     const handleDeleteItem = async (item: any) => {
         await deleteItem({ itemId: item._id });
 
-        showToast("Item deleted", "success", (
+        showToast(t("item_deleted"), "success", (
             <button
                 onClick={() => undoDeleteItem({ itemId: item._id })}
                 className="bg-white text-gray-900 px-2 py-1 rounded text-xs font-bold hover:bg-gray-100 transition-colors"
             >
-                Undo
+                {t("undo")}
             </button>
         ));
     };
 
     const handleDeleteCategory = async (category: any, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (confirm("Are you sure? This will hide the category.")) {
+        if (confirm(t("cancel_order_confirm"))) {
             await deleteCategory({ categoryId: category._id });
 
-            showToast("Category deleted", "success", (
+            showToast(t("category_deleted"), "success", (
                 <button
                     onClick={() => undoDeleteCategory({ categoryId: category._id })}
                     className="bg-white text-gray-900 px-2 py-1 rounded text-xs font-bold hover:bg-gray-100 transition-colors"
                 >
-                    Undo
+                    {t("undo")}
                 </button>
             ));
         }
@@ -211,7 +214,7 @@ export default function MenuManager() {
             <header className="bg-white shadow sticky top-0 z-20">
                 <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Menu</h1>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t("menu")}</h1>
                         <div className="flex flex-wrap gap-2 items-center">
                             <Button
                                 variant="outline"
@@ -219,8 +222,8 @@ export default function MenuManager() {
                                 onClick={() => setIsModifiersOpen(true)}
                                 className="text-gray-600 border-gray-300 hover:bg-gray-50 flex-1 sm:flex-none"
                             >
-                                <Edit className="w-4 h-4 mr-2" />
-                                Modifiers
+                                <Edit className="w-4 h-4 mr-2 ml-2" />
+                                {t("modifiers")}
                             </Button>
                             <Button
                                 variant="outline"
@@ -228,16 +231,16 @@ export default function MenuManager() {
                                 onClick={() => setIsTrashOpen(true)}
                                 className="text-gray-600 border-gray-300 hover:bg-gray-50 flex-1 sm:flex-none"
                             >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Trash
+                                <Trash2 className="w-4 h-4 mr-2 ml-2" />
+                                {t("trash")}
                             </Button>
                             <Button
                                 size="sm"
                                 onClick={() => setIsCategoryModalOpen(true)}
                                 className="bg-green-600 hover:bg-green-700 text-white flex-1 sm:flex-none"
                             >
-                                <Plus className="w-4 h-4 mr-2" />
-                                Category
+                                <Plus className="w-4 h-4 mr-2 ml-2" />
+                                {t("category")}
                             </Button>
                         </div>
                     </div>
@@ -253,7 +256,7 @@ export default function MenuManager() {
                                     <ChevronDown className="h-5 w-5 shrink-0 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
                                     <h2 className="text-xl font-bold text-gray-800 text-left">{category.name}</h2>
                                     <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full whitespace-nowrap">
-                                        {category.items.length} items
+                                        {category.items.length} {t("items")}
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2 w-full sm:w-auto pl-9 sm:pl-0">
@@ -275,8 +278,8 @@ export default function MenuManager() {
                                         }}
                                         className="inline-flex items-center justify-center rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-95 h-8 px-3 text-xs bg-blue-600 text-white hover:bg-blue-700 cursor-pointer flex-1 sm:flex-none"
                                     >
-                                        <Plus className="w-4 h-4 mr-2" />
-                                        Add Item
+                                        <Plus className="w-4 h-4 mr-2 ml-2" />
+                                        {t("add_item")}
                                     </div>
                                     <div
                                         role="button"
@@ -324,8 +327,8 @@ export default function MenuManager() {
                                                         onClick={() => handleEditClick(item)}
                                                         className="text-blue-600 border-blue-200 hover:bg-blue-50 flex-1 sm:flex-none"
                                                     >
-                                                        <Edit className="w-4 h-4 mr-1" />
-                                                        Edit
+                                                        <Edit className="w-4 h-4 mr-1 ml-1" />
+                                                        {t("edit")}
                                                     </Button>
                                                     <Button
                                                         variant="outline"
@@ -335,13 +338,13 @@ export default function MenuManager() {
                                                     >
                                                         {item.isAvailable ? (
                                                             <>
-                                                                <EyeOff className="w-4 h-4 mr-1" />
-                                                                Unavailable
+                                                                <EyeOff className="w-4 h-4 mr-1 ml-1" />
+                                                                {t("unavailable")}
                                                             </>
                                                         ) : (
                                                             <>
-                                                                <Eye className="w-4 h-4 mr-1" />
-                                                                Available
+                                                                <Eye className="w-4 h-4 mr-1 ml-1" />
+                                                                {t("available")}
                                                             </>
                                                         )}
                                                     </Button>
@@ -350,7 +353,7 @@ export default function MenuManager() {
                                                         size="sm"
                                                         onClick={() => handleDeleteItem(item)}
                                                         className="text-red-400 border-red-200 hover:bg-red-50 hover:text-red-600"
-                                                        title="Delete Item"
+                                                        title={t("delete")}
                                                     >
                                                         <Trash2 className="w-4 h-4" />
                                                     </Button>
@@ -377,11 +380,11 @@ export default function MenuManager() {
                     setEditingItem(null);
                     setIsAddingItem(false);
                 }}
-                title={editingItem ? "Edit Item" : "Add New Item"}
+                title={editingItem ? t("edit_item") : t("add_new_item")}
             >
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t("name")}</label>
                         <Input
                             value={formData.name}
                             onChange={e => setFormData({ ...formData, name: e.target.value })}
@@ -391,7 +394,7 @@ export default function MenuManager() {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t("description")}</label>
                         <textarea
                             className="w-full rounded-lg border-gray-300 shadow-sm focus:border-[#D4AF37] focus:ring-[#D4AF37] text-black placeholder:text-gray-500"
                             rows={3}
@@ -402,7 +405,7 @@ export default function MenuManager() {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Arabic Description (Optional)</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t("description_ar_label")}</label>
                         <textarea
                             className="w-full rounded-lg border-gray-300 shadow-sm focus:border-[#D4AF37] focus:ring-[#D4AF37] text-black placeholder:text-gray-500 text-right"
                             rows={3}
@@ -411,12 +414,12 @@ export default function MenuManager() {
                             onChange={e => setFormData({ ...formData, description_ar: e.target.value })}
                             placeholder="وصف المنتج..."
                         />
-                        <p className="text-xs text-gray-500 mt-1">Leave empty to auto-translate from English.</p>
+                        <p className="text-xs text-gray-500 mt-1">{t("auto_translate_msg")}</p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Price (DA)</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">{t("price")} (DA)</label>
                             <Input
                                 type="number"
                                 step="0.01"
@@ -428,7 +431,7 @@ export default function MenuManager() {
                         </div>
                         {isAddingItem && (
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">{t("category")}</label>
                                 <select
                                     className="w-full h-12 px-4 py-2.5 rounded-lg bg-white border-gray-300 shadow-sm focus:border-[#D4AF37] focus:ring-[#D4AF37] text-black"
                                     value={formData.categoryId}
@@ -451,7 +454,7 @@ export default function MenuManager() {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Related Modifiers</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{t("related_modifiers")}</label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 border border-gray-200 rounded-lg">
                             {menu.modifiers?.map((mod: any) => (
                                 <label key={mod._id} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
@@ -484,11 +487,11 @@ export default function MenuManager() {
                                 setIsAddingItem(false);
                             }}
                         >
-                            Cancel
+                            {t("cancel")}
                         </Button>
                         <Button onClick={handleSave} className="bg-[#D4AF37] text-white hover:bg-[#c4a027]">
                             <Save className="w-4 h-4 mr-2" />
-                            Save Changes
+                            {t("save_changes")}
                         </Button>
                     </div>
                 </div>
@@ -498,19 +501,19 @@ export default function MenuManager() {
             <Modal
                 isOpen={isTrashOpen}
                 onClose={() => setIsTrashOpen(false)}
-                title="Trash (Last 24 Hours)"
+                title={t("trash")}
             >
                 <div className="space-y-6">
                     {!trash || (trash.items.length === 0 && trash.categories.length === 0) ? (
                         <div className="text-center py-8 text-gray-500">
                             <Trash2 className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                            <p>Trash is empty</p>
+                            <p>{t("trash_empty")}</p>
                         </div>
                     ) : (
                         <>
                             {trash.categories.length > 0 && (
                                 <div>
-                                    <h3 className="font-bold text-gray-900 mb-3">Deleted Categories</h3>
+                                    <h3 className="font-bold text-gray-900 mb-3">{t("deleted_categories")}</h3>
                                     <div className="space-y-2">
                                         {trash.categories.map((cat: any) => (
                                             <div key={cat._id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
@@ -521,7 +524,7 @@ export default function MenuManager() {
                                                     onClick={() => undoDeleteCategory({ categoryId: cat._id })}
                                                     className="text-blue-600 border-blue-200 hover:bg-blue-50 h-8"
                                                 >
-                                                    Restore
+                                                    {t("restore")}
                                                 </Button>
                                             </div>
                                         ))}
@@ -531,7 +534,7 @@ export default function MenuManager() {
 
                             {trash.items.length > 0 && (
                                 <div>
-                                    <h3 className="font-bold text-gray-900 mb-3">Deleted Items</h3>
+                                    <h3 className="font-bold text-gray-900 mb-3">{t("deleted_items")}</h3>
                                     <div className="space-y-2">
                                         {trash.items.map((item: any) => (
                                             <div key={item._id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
@@ -550,7 +553,7 @@ export default function MenuManager() {
                                                     onClick={() => undoDeleteItem({ itemId: item._id })}
                                                     className="text-blue-600 border-blue-200 hover:bg-blue-50 h-8"
                                                 >
-                                                    Restore
+                                                    {t("restore")}
                                                 </Button>
                                             </div>
                                         ))}
@@ -566,11 +569,11 @@ export default function MenuManager() {
             <Modal
                 isOpen={isModifiersOpen}
                 onClose={() => setIsModifiersOpen(false)}
-                title="Manage Modifiers"
+                title={t("manage_modifiers")}
             >
                 <div className="space-y-6">
                     <div className="bg-gray-50 p-4 rounded-lg space-y-4">
-                        <h3 className="font-medium text-gray-900">{isEditingModifier ? "Edit Modifier" : "Add New Modifier"}</h3>
+                        <h3 className="font-medium text-gray-900">{isEditingModifier ? t("edit_modifier") : t("add_new_modifier")}</h3>
                         <div className="grid grid-cols-2 gap-4">
                             <Input
                                 placeholder="Name (e.g. Extra Cheese)"
@@ -594,7 +597,7 @@ export default function MenuManager() {
                             />
                             <div className="flex gap-2">
                                 <Button onClick={handleSaveModifier} className="flex-1 bg-[#D4AF37] text-white hover:bg-[#c4a027]">
-                                    {isEditingModifier ? "Update" : "Add"}
+                                    {isEditingModifier ? t("update" as any) || "Update" : t("add" as any) || "Add"}
                                 </Button>
                                 {isEditingModifier && (
                                     <Button
@@ -604,7 +607,7 @@ export default function MenuManager() {
                                             setModifierForm({ id: "", name: "", name_ar: "", price: "" });
                                         }}
                                     >
-                                        Cancel
+                                        {t("cancel")}
                                     </Button>
                                 )}
                             </div>
@@ -612,7 +615,7 @@ export default function MenuManager() {
                     </div>
 
                     <div className="space-y-2">
-                        <h3 className="font-medium text-gray-900">Existing Modifiers</h3>
+                        <h3 className="font-medium text-gray-900">{t("existing_modifiers")}</h3>
                         <div className="max-h-60 overflow-y-auto space-y-2">
                             {menu.modifiers?.map((mod: any) => (
                                 <div key={mod._id} className="flex justify-between items-center p-3 bg-white border border-gray-200 rounded-lg">
@@ -663,11 +666,11 @@ export default function MenuManager() {
                     setIsCategoryModalOpen(false);
                     setCategoryName("");
                 }}
-                title="Add New Category"
+                title={t("add_new_category")}
             >
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Category Name</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t("category_name")}</label>
                         <Input
                             value={categoryName}
                             onChange={e => setCategoryName(e.target.value)}
@@ -684,12 +687,12 @@ export default function MenuManager() {
                                 setCategoryName("");
                             }}
                         >
-                            Cancel
+                            {t("cancel")}
                         </Button>
                         <Button
                             onClick={async () => {
                                 if (!categoryName.trim()) {
-                                    showToast("Please enter a category name", "error");
+                                    showToast(t("enter_category_name_error"), "error");
                                     return;
                                 }
                                 if (!menu.restaurant) return;
@@ -705,13 +708,13 @@ export default function MenuManager() {
                                     rank: maxRank + 1
                                 });
 
-                                showToast("Category created successfully", "success");
+                                showToast(t("category_created_success"), "success");
                                 setIsCategoryModalOpen(false);
                                 setCategoryName("");
                             }}
                             className="bg-[#D4AF37] text-white hover:bg-[#c4a027]"
                         >
-                            Create Category
+                            {t("create_category")}
                         </Button>
                     </div>
                 </div>

@@ -8,9 +8,12 @@ import clsx from "clsx";
 import { useState, useMemo } from "react";
 import { useRestaurant } from "./layout";
 
+import { useLanguage } from "@/contexts/LanguageContext";
+
 export default function AdminDashboard() {
     // Use shared restaurant context from layout
     const { restaurant } = useRestaurant();
+    const { t } = useLanguage();
 
     const [currentTime, setCurrentTime] = useState(Date.now());
 
@@ -71,24 +74,25 @@ export default function AdminDashboard() {
 
     // Early returns AFTER all hooks
     if (restaurant === undefined || orders === undefined) {
-        return <div className="p-8 text-center">Loading dashboard...</div>;
+        return <div className="p-8 text-center">{t("loading_status")}</div>;
     }
 
     if (restaurant === null) {
-        return <div className="p-8 text-center text-red-500">Restaurant not found. Please seed data.</div>;
+        return <div className="p-8 text-center text-red-500">{t("manager_login_required")}</div>;
     }
 
     const handlePrintReceipt = (order: any) => {
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
 
+        const direction = t("direction" as any) === "rtl" ? "rtl" : "ltr";
         const receiptHTML = `
             <!DOCTYPE html>
-            <html>
+            <html dir="${direction}">
             <head>
-                <title>Receipt - Table ${order.table?.number}</title>
+                <title>${t("print_receipt")} - ${t("table_no")} ${order.table?.number}</title>
                 <style>
-                    body { font-family: monospace; padding: 20px; max-width: 400px; margin: 0 auto; }
+                    body { font-family: sans-serif; padding: 20px; max-width: 400px; margin: 0 auto; }
                     h1 { text-align: center; font-size: 24px; margin-bottom: 10px; }
                     .header { text-align: center; margin-bottom: 20px; border-bottom: 2px dashed #000; padding-bottom: 10px; }
                     .items { margin: 20px 0; }
@@ -101,9 +105,9 @@ export default function AdminDashboard() {
             <body>
                 <div class="header">
                     <h1>${restaurant.name}</h1>
-                    <p>Table: ${order.table?.number}</p>
-                    <p>Date: ${new Date(order._creationTime).toLocaleString()}</p>
-                    <p>Status: PAID</p>
+                    <p>${t("table_no")} ${order.table?.number}</p>
+                    <p>${t("date" as any) || "Date"}: ${new Date(order._creationTime).toLocaleString()}</p>
+                    <p>${t("status" as any) || "Status"}: ${t("status_paid")}</p>
                 </div>
                 <div class="items">
                     ${order.items.map((item: any) => `
@@ -112,26 +116,26 @@ export default function AdminDashboard() {
                             <span>${restaurant.currency} ${(item.menuItem?.price * item.quantity).toFixed(2)}</span>
                         </div>
                         ${item.modifiers ? item.modifiers.map((mod: any) => `
-                            <div class="item" style="font-size: 12px; color: #555; padding-left: 20px; margin: 4px 0;">
+                            <div class="item" style="font-size: 12px; color: #555; padding-${direction === "rtl" ? "right" : "left"}: 20px; margin: 4px 0;">
                                 <span>+ ${mod.name || "Extra"} (x${mod.quantity})</span>
                                 <span>${mod.price > 0 ? `${restaurant.currency} ${(mod.price * mod.quantity).toFixed(2)}` : ''}</span>
                             </div>
                         `).join('') : ''}
-                        ${item.notes ? `<div style="font-size: 12px; color: #555; padding-left: 20px; font-style: italic;">Note: ${item.notes}</div>` : ''}
+                        ${item.notes ? `<div style="font-size: 12px; color: #555; padding-${direction === "rtl" ? "right" : "left"}: 20px; font-style: italic;">${t("note")}: ${item.notes}</div>` : ''}
                     `).join('')}
                 </div>
                 <div class="total">
                     <div class="item">
-                        <span>TOTAL:</span>
+                        <span>${t("total").toUpperCase()}:</span>
                         <span>${restaurant.currency} ${order.totalAmount.toFixed(2)}</span>
                     </div>
                 </div>
                 <div class="footer">
-                    <p>Thank you for dining with us!</p>
+                    <p>${t("bon_appetit")}</p>
                 </div>
                 <div style="text-align: center; margin-top: 20px;">
-                    <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">Print Receipt</button>
-                    <button onclick="window.close()" style="padding: 10px 20px; font-size: 16px; cursor: pointer; margin-left: 10px;">Close</button>
+                    <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">${t("print_receipt")}</button>
+                    <button onclick="window.close()" style="padding: 10px 20px; font-size: 16px; cursor: pointer; margin-left: 10px;">${t("close" as any) || "Close"}</button>
                 </div>
             </body>
             </html>
@@ -160,7 +164,7 @@ export default function AdminDashboard() {
     };
 
     const handleCancelOrder = async (orderId: any) => {
-        if (confirm("Are you sure you want to cancel this order?")) {
+        if (confirm(t("cancel_order_confirm"))) {
             await cancelOrder({ orderId });
         }
     };
@@ -171,27 +175,27 @@ export default function AdminDashboard() {
                 <div className="max-w-7xl mx-auto px-4 py-4 sm:py-6 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                            Dashboard
+                            {t("dashboard")}
                         </h1>
                         <p className="text-sm text-gray-500 sm:hidden">
-                            {orders.length} Active Orders
+                            {t("active_orders", { count: orders.length.toString() })}
                         </p>
                     </div>
                     <div className="flex items-center gap-3 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
                         <div className="text-sm text-gray-500 hidden sm:block whitespace-nowrap">
-                            {orders.length} Active Orders
+                            {t("active_orders", { count: orders.length.toString() })}
                         </div>
                         <button
                             onClick={async () => {
-                                if (confirm("This will hide all Paid and Cancelled orders from the dashboard. They will remain in analytics. Continue?")) {
+                                if (confirm(t("clear_dashboard_confirm"))) {
                                     const result = await archiveCompletedOrders({ restaurantId: restaurant._id });
-                                    alert(`Cleared ${result.archivedCount} completed orders.`);
+                                    alert(t("orders_cleared_msg", { count: result.archivedCount.toString() }));
                                 }
                             }}
                             className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-md border border-gray-200 transition-colors flex items-center gap-1 whitespace-nowrap shrink-0"
                         >
                             <Trash2 className="w-3 h-3" />
-                            Clear Dashboard
+                            {t("clear_dashboard")}
                         </button>
                     </div>
                 </div>
@@ -201,17 +205,11 @@ export default function AdminDashboard() {
                 <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {groupedOrders.map((group: any) => (
                         <div key={group._id} className="bg-white overflow-hidden shadow rounded-lg flex flex-col relative group">
-                            {/* Cancel Button (Only if single order or handle logical cancellation of group?) */}
-                            {/* For now, allow cancelling individual orders if expanded, or just general cancel? 
-                                Let's keep it simple: Cancel affects the whole group? No, dangerous.
-                                Let's allow cancelling the *displayed* status. 
-                                Actually, for grouped orders, maybe we shouldn't show the quick X unless it's a single order.
-                            */}
                             {!group.isGroup && group.status !== "cancelled" && group.status !== "paid" && (
                                 <button
                                     onClick={() => handleCancelOrder(group._id)}
                                     className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors z-10"
-                                    title="Cancel Order"
+                                    title={t("remove")}
                                 >
                                     <X className="w-5 h-5" />
                                 </button>
@@ -221,18 +219,18 @@ export default function AdminDashboard() {
                                 <div className="flex justify-between items-start mb-4">
                                     <div>
                                         <h3 className="text-lg font-medium text-gray-900">
-                                            Table {group.table?.number}
+                                            {t("table_no")} {group.table?.number}
                                         </h3>
                                         <p className="text-sm text-gray-500">
                                             {new Date(group.creationTime).toLocaleTimeString()}
-                                            {group.orders.length > 1 && ` • ${group.orders.length} Orders`}
+                                            {group.orders.length > 1 && ` • ${group.orders.length} ${t("items")}`}
                                         </p>
                                     </div>
                                     <span className={clsx(
                                         "px-2 py-1 text-xs font-medium rounded-full",
                                         statusColors[group.status as keyof typeof statusColors]
                                     )}>
-                                        {group.status.toUpperCase()}
+                                        {t(`status_${group.status}` as any).toUpperCase()}
                                     </span>
                                 </div>
 
@@ -250,7 +248,7 @@ export default function AdminDashboard() {
                                             </div>
                                             {/* Modifiers */}
                                             {item.modifiers && item.modifiers.length > 0 && (
-                                                <div className="pl-6 text-xs text-gray-500 mt-1 space-y-1">
+                                                <div className="pl-6 pr-6 text-xs text-gray-500 mt-1 space-y-1">
                                                     {item.modifiers.map((mod: any, mIdx: number) => (
                                                         <div key={mIdx} className="flex justify-between">
                                                             <span>+ {mod.name || "Extra"} (x{mod.quantity})</span>
@@ -263,8 +261,8 @@ export default function AdminDashboard() {
                                             )}
                                             {/* Notes */}
                                             {item.notes && (
-                                                <p className="pl-6 text-xs text-orange-600 italic mt-1">
-                                                    Note: {item.notes}
+                                                <p className="pl-6 pr-6 text-xs text-orange-600 italic mt-1">
+                                                    {t("note")}: {item.notes}
                                                 </p>
                                             )}
                                         </div>
@@ -276,7 +274,7 @@ export default function AdminDashboard() {
                                         "font-bold text-lg",
                                         group.status === "paid" ? "text-green-600" : "text-black"
                                     )}>
-                                        Total: {restaurant.currency} {group.totalAmount.toFixed(2)}
+                                        {t("total")}: {restaurant.currency} {group.totalAmount.toFixed(2)}
                                     </span>
                                 </div>
                             </div>
@@ -287,8 +285,8 @@ export default function AdminDashboard() {
                                         onClick={() => handleStatusUpdate(group, "preparing")}
                                         className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                                     >
-                                        <Coffee className="h-4 w-4 mr-1" />
-                                        Start Preparing
+                                        <Coffee className="h-4 w-4 mr-1 ml-1" />
+                                        {t("start_preparing")}
                                     </button>
                                 )}
                                 {group.status === "preparing" && (
@@ -296,8 +294,8 @@ export default function AdminDashboard() {
                                         onClick={() => handleStatusUpdate(group, "ready")}
                                         className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
                                     >
-                                        <CheckCircle className="h-4 w-4 mr-1" />
-                                        Mark Ready
+                                        <CheckCircle className="h-4 w-4 mr-1 ml-1" />
+                                        {t("mark_ready")}
                                     </button>
                                 )}
                                 {group.status === "ready" && (
@@ -305,8 +303,8 @@ export default function AdminDashboard() {
                                         onClick={() => handleStatusUpdate(group, "served")}
                                         className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                                     >
-                                        <CheckCircle className="h-4 w-4 mr-1" />
-                                        Serve
+                                        <CheckCircle className="h-4 w-4 mr-1 ml-1" />
+                                        {t("serve")}
                                     </button>
                                 )}
                                 {group.status === "served" && (
@@ -314,8 +312,8 @@ export default function AdminDashboard() {
                                         onClick={() => handleStatusUpdate(group, "paid")}
                                         className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                                     >
-                                        <DollarSign className="h-4 w-4 mr-1" />
-                                        Mark Paid
+                                        <DollarSign className="h-4 w-4 mr-1 ml-1" />
+                                        {t("mark_paid")}
                                     </button>
                                 )}
                                 {group.status === "paid" && (
@@ -323,8 +321,8 @@ export default function AdminDashboard() {
                                         onClick={() => handlePrintReceipt(group.orders[0])}
                                         className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                                     >
-                                        <Printer className="h-4 w-4 mr-1" />
-                                        Print Receipt
+                                        <Printer className="h-4 w-4 mr-1 ml-1" />
+                                        {t("print_receipt")}
                                     </button>
                                 )}
                             </div>
@@ -334,8 +332,8 @@ export default function AdminDashboard() {
                     {orders.length === 0 && (
                         <div className="col-span-full text-center py-12 bg-white rounded-lg border-2 border-dashed border-gray-300">
                             <Clock className="mx-auto h-12 w-12 text-gray-400" />
-                            <h3 className="mt-2 text-sm font-medium text-gray-900">No active orders</h3>
-                            <p className="mt-1 text-sm text-gray-500">New orders will appear here automatically.</p>
+                            <h3 className="mt-2 text-sm font-medium text-gray-900">{t("no_active_orders_msg")}</h3>
+                            <p className="mt-1 text-sm text-gray-500">{t("new_orders_appear_automatically")}</p>
                         </div>
                     )}
                 </div>

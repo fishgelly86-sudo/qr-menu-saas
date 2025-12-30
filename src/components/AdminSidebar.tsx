@@ -8,6 +8,9 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
+import { useLanguage } from "@/contexts/LanguageContext";
+import { LogOut } from "lucide-react";
+
 interface AdminSidebarProps {
     isOpen?: boolean;
     onClose?: () => void;
@@ -18,6 +21,7 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
     const router = useRouter();
     const { signOut } = useAuthActions();
     const { isAuthenticated } = useConvexAuth();
+    const { t, direction } = useLanguage();
     const restaurant = useQuery(api.restaurants.getMyRestaurant, isAuthenticated ? {} : "skip");
     const updateRestaurant = useMutation(api.restaurants.updateRestaurant);
 
@@ -30,11 +34,13 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
     };
 
     const links = [
-        { name: "Dashboard", href: "/admin/manager", icon: LayoutDashboard },
-        { name: "Menu Management", href: "/admin/manager/menu", icon: Menu },
-        { name: "Tables", href: "/admin/manager/tables", icon: UtensilsCrossed },
-        { name: "Analytics", href: "/admin/manager/analytics", icon: BarChart3 },
+        { name: t("dashboard"), href: "/admin/manager", icon: LayoutDashboard },
+        { name: t("menu_management"), href: "/admin/manager/menu", icon: Menu },
+        { name: t("tables_management"), href: "/admin/manager/tables", icon: UtensilsCrossed },
+        { name: t("analytics"), href: "/admin/manager/analytics", icon: BarChart3 },
     ];
+
+    const isRtl = direction === "rtl";
 
     return (
         <>
@@ -49,11 +55,12 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
 
             {/* Sidebar container */}
             <div className={clsx(
-                "fixed inset-y-0 left-0 flex flex-col w-64 bg-white border-r border-gray-200 transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 z-50",
-                isOpen ? "translate-x-0" : "-translate-x-full"
+                "fixed inset-y-0 flex flex-col w-64 bg-white border-r border-gray-200 transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 z-50",
+                isRtl ? "right-0" : "left-0",
+                isOpen ? "translate-x-0" : (isRtl ? "translate-x-full" : "-translate-x-full")
             )}>
                 <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
-                    <span className="text-xl font-bold text-gray-900">Admin Portal</span>
+                    <span className="text-xl font-bold text-gray-900">{t("admin_portal")}</span>
                     <button
                         onClick={onClose}
                         className="lg:hidden p-2 rounded-md text-gray-500 hover:text-gray-900 focus:outline-none"
@@ -79,7 +86,8 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
                                 >
                                     <link.icon
                                         className={clsx(
-                                            "mr-3 h-5 w-5 flex-shrink-0",
+                                            isRtl ? "ml-3" : "mr-3",
+                                            "h-5 w-5 flex-shrink-0",
                                             isActive ? "text-gray-500" : "text-gray-400 group-hover:text-gray-500"
                                         )}
                                     />
@@ -94,7 +102,7 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
                 <div className="p-4 border-t border-gray-200 space-y-4">
                     <div className="flex items-center justify-between px-2">
                         <span className={`text-sm font-medium ${restaurant?.isAcceptingOrders ? "text-green-600" : "text-red-600"}`}>
-                            {restaurant?.isAcceptingOrders ? "Open" : "Closed"}
+                            {restaurant?.isAcceptingOrders ? t("open") : t("closed")}
                         </span>
                         <label className="relative inline-flex items-center cursor-pointer">
                             <input
@@ -114,8 +122,8 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
                         }}
                         className="flex items-center w-full px-2 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md"
                     >
-                        <ExternalLink className="mr-3 h-5 w-5 transform rotate-180" /> {/* Simulating logout icon */}
-                        Log Out
+                        <LogOut className={clsx("h-5 w-5", isRtl ? "ml-3 rotate-180" : "mr-3")} />
+                        {t("logout")}
                     </button>
 
                     <Link
@@ -123,8 +131,8 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
                         target="_blank"
                         className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 shadow-sm"
                     >
-                        Kitchen Mode
-                        <ExternalLink className="ml-2 h-4 w-4" />
+                        {t("kitchen_mode")}
+                        <ExternalLink className={clsx("h-4 w-4", isRtl ? "mr-2" : "ml-2")} />
                     </Link>
                 </div>
             </div>

@@ -21,9 +21,11 @@ import {
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/Button";
 import { useRestaurant } from "../layout";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function AnalyticsPage() {
   const { restaurant } = useRestaurant();
+  const { t, language } = useLanguage();
   // const restaurantSlug = restaurant?.slug;
 
   const [dateRange, setDateRange] = useState<"today" | "7days" | "30days">(
@@ -56,24 +58,24 @@ export default function AnalyticsPage() {
   ) as any;
 
   const getTimeLabel = (range: string) => {
-    if (range === "today") return "TODAY";
-    if (range === "7days") return "THIS WEEK";
-    if (range === "30days") return "THIS MONTH";
-    return "TODAY";
+    if (range === "today") return t("today").toUpperCase();
+    if (range === "7days") return t("this_week");
+    if (range === "30days") return t("this_month");
+    return t("today").toUpperCase();
   };
 
   if (!restaurant || !stats)
-    return <div className="p-8">Loading Analytics...</div>;
+    return <div className="p-8">{t("loading_status")}</div>;
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
-            Analytics Dashboard
+            {t("analytics_dashboard")}
           </h1>
           <p className="text-gray-500">
-            Overview of your restaurant&apos;s performance
+            {t("analytics_overview")}
           </p>
         </div>
         <div className="flex items-center bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
@@ -81,19 +83,19 @@ export default function AnalyticsPage() {
             onClick={() => setDateRange("today")}
             className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${dateRange === "today" ? "bg-indigo-50 text-indigo-600 shadow-sm" : "text-gray-500 hover:text-gray-900"}`}
           >
-            Today
+            {t("today")}
           </button>
           <button
             onClick={() => setDateRange("7days")}
             className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${dateRange === "7days" ? "bg-indigo-50 text-indigo-600 shadow-sm" : "text-gray-500 hover:text-gray-900"}`}
           >
-            Last 7 Days
+            {t("last_7_days")}
           </button>
           <button
             onClick={() => setDateRange("30days")}
             className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${dateRange === "30days" ? "bg-indigo-50 text-indigo-600 shadow-sm" : "text-gray-500 hover:text-gray-900"}`}
           >
-            Last 30 Days
+            {t("last_30_days")}
           </button>
         </div>
       </header>
@@ -103,7 +105,7 @@ export default function AnalyticsPage() {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">
-              Sales {getTimeLabel(dateRange)}
+              {t("sales")} {getTimeLabel(dateRange)}
             </h3>
             <div className="p-2 bg-green-100 rounded-lg">
               <DollarSign className="w-5 h-5 text-green-600" />
@@ -117,7 +119,7 @@ export default function AnalyticsPage() {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">
-              Orders {getTimeLabel(dateRange)}
+              {t("orders")} {getTimeLabel(dateRange)}
             </h3>
             <div className="p-2 bg-blue-100 rounded-lg">
               <ShoppingBag className="w-5 h-5 text-blue-600" />
@@ -127,7 +129,7 @@ export default function AnalyticsPage() {
             {stats.totalOrders}
           </div>
           <p className="text-sm text-gray-500 mt-2">
-            Avg. Order: {restaurant.currency}{" "}
+            {t("avg_order")}: {restaurant.currency}{" "}
             {(stats.totalRevenue / (stats.totalOrders || 1)).toFixed(2)}
           </p>
         </div>
@@ -139,7 +141,7 @@ export default function AnalyticsPage() {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 border-t-4 border-t-emerald-500">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">
-              Top Selling Items
+              {t("top_selling_items")}
             </h3>
             <div className="p-2 bg-emerald-100 rounded-lg">
               <Star className="w-5 h-5 text-emerald-600" />
@@ -169,7 +171,7 @@ export default function AnalyticsPage() {
                         {item.name}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {item.count} sold
+                        {t("sold_count", { count: item.count.toString() })}
                       </div>
                     </div>
                   </div>
@@ -180,7 +182,7 @@ export default function AnalyticsPage() {
               ))
             ) : (
               <div className="text-gray-400 italic text-center py-4">
-                No item sales data yet
+                {t("no_item_sales_data")}
               </div>
             )}
           </div>
@@ -190,7 +192,7 @@ export default function AnalyticsPage() {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 border-t-4 border-t-amber-500">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">
-              Top Extras
+              {t("top_extras")}
             </h3>
             <div className="p-2 bg-amber-100 rounded-lg">
               <TrendingUp className="w-5 h-5 text-amber-600" />
@@ -213,7 +215,7 @@ export default function AnalyticsPage() {
                         {item.name}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {item.count} sold
+                        {t("sold_count", { count: item.count.toString() })}
                       </div>
                     </div>
                   </div>
@@ -224,7 +226,7 @@ export default function AnalyticsPage() {
               ))
             ) : (
               <div className="text-gray-400 italic text-center py-4">
-                No extras sales data yet
+                {t("no_extras_sales_data")}
               </div>
             )}
           </div>
@@ -234,7 +236,7 @@ export default function AnalyticsPage() {
       {/* Revenue Chart */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
         <h3 className="text-lg font-bold text-gray-900 mb-6 text-center">
-          Revenue by Category
+          {t("revenue_by_category")}
         </h3>
         <div className="h-96">
           <ResponsiveContainer width="100%" height="100%">
@@ -255,7 +257,7 @@ export default function AnalyticsPage() {
               <Tooltip
                 formatter={(value: number) => [
                   `${restaurant.currency} ${value.toFixed(2)}`,
-                  "Revenue",
+                  t("revenue"),
                 ]}
               />
               <Legend />
