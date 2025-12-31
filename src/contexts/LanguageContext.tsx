@@ -28,24 +28,23 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     const isManager = pathname?.startsWith("/admin/manager");
     const isAdmin = pathname?.startsWith("/admin");
 
-    const [language, setLanguageState] = useState<Language>(() => {
-        if (typeof window !== "undefined") {
-            const savedLang = localStorage.getItem("language") as Language;
-            const managerLang = localStorage.getItem("manager_language") as Language;
-            const isMan = window.location.pathname.startsWith("/admin/manager");
+    // Track if component has mounted to prevent hydration mismatch
+    const [mounted, setMounted] = useState(false);
 
-            if (isMan) {
-                return managerLang || "ar";
-            }
-            if (savedLang && (savedLang === "en" || savedLang === "ar")) {
-                return savedLang;
-            }
-        }
-        return "en";
-    });
+    // Always start with "en" for both server and client to prevent hydration mismatch
+    // The actual user preference will be loaded after mount
+    const [language, setLanguageState] = useState<Language>("en");
 
+    // Set mounted state after first render
     useEffect(() => {
-        // Check local storage or browser preference
+        setMounted(true);
+    }, []);
+
+    // Load language preference from localStorage AFTER component mounts
+    // This prevents hydration mismatch between server and client
+    useEffect(() => {
+        if (!mounted) return;
+
         const savedLang = localStorage.getItem("language") as Language;
         const managerLang = localStorage.getItem("manager_language") as Language;
 
@@ -61,7 +60,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         } else if (savedLang && (savedLang === "en" || savedLang === "ar")) {
             setLanguageState(savedLang);
         }
-    }, [isManager]);
+    }, [mounted, isManager]);
 
     const setLanguage = (lang: Language) => {
         setLanguageState(lang);

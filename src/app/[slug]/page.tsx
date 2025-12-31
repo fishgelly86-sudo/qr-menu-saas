@@ -141,10 +141,6 @@ export default function CustomerMenuPage() {
     const callWaiter = useMutation(api.waiterCalls.callWaiter);
     const createSession = useMutation(api.sessions.createTableSession);
     const refreshSession = useMutation(api.sessions.refreshSession);
-    const sessionStatusCheck = useQuery(
-        api.sessions.getSessionStatus,
-        sessionId ? { sessionId } : "skip"
-    );
 
 
     // Security: Check Manager Status
@@ -198,12 +194,8 @@ export default function CustomerMenuPage() {
         }
     };
 
-    // Watch for session expiration from query
-    useEffect(() => {
-        if (sessionStatusCheck?.status === "expired") {
-            setSessionError((t as any)("session_expired_msg") || "Your session has expired. Please scan the QR code again.");
-        }
-    }, [sessionStatusCheck, t]);
+    // Session expiration is now only checked when placing orders
+    // This prevents the error UI from appearing during normal browsing or language changes
 
     // Session Heartbeat: Refresh every 5 minutes to prevent timeout
     useEffect(() => {
@@ -227,25 +219,46 @@ export default function CustomerMenuPage() {
     }, [sessionId, refreshSession]);
 
 
-    // Load active orders from local storage on mount
+    // Load active orders from local storage - TABLE SPECIFIC
+    // This ensures orders from table 2 don't appear on table 4
     useEffect(() => {
-        const saved = localStorage.getItem("activeOrderIds");
+        if (!tableNumber) return;
+
+        const storageKey = `activeOrderIds_table_${tableNumber}`;
+        const saved = localStorage.getItem(storageKey);
+
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
                 if (Array.isArray(parsed)) {
                     setActiveOrderIds(parsed);
-                    // If we have active orders, show the latest one by default if it's the first load
-                    // But we'll leave currentOrderId null so the user sees the menu first, unless they just placed it
                 }
-            } catch (e) { }
+            } catch (e) {
+                setActiveOrderIds([]);
+            }
+        } else {
+            // No orders for this table yet
+            setActiveOrderIds([]);
         }
-    }, []);
+    }, [tableNumber]);
 
-    // Save active orders to local storage
+    // Save active orders to local storage - TABLE SPECIFIC
     useEffect(() => {
-        localStorage.setItem("activeOrderIds", JSON.stringify(activeOrderIds));
-    }, [activeOrderIds]);
+        if (!tableNumber) return;
+
+        const storageKey = `activeOrderIds_table_${tableNumber}`;
+        localStorage.setItem(storageKey, JSON.stringify(activeOrderIds));
+    }, [activeOrderIds, tableNumber]);
+
+    // Clear cart and orders when switching to a different table
+    useEffect(() => {
+        if (tableNumber) {
+            // Clear cart to prevent contamination from previous table
+            setCart([]);
+            // currentOrderId and activeOrderIds will be loaded from the new table's storage
+            setCurrentOrderId(null);
+        }
+    }, [tableNumber]);
 
     // Watch for archived or cancelled orders and clean up
     useEffect(() => {

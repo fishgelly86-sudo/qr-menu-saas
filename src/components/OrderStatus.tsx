@@ -129,17 +129,48 @@ export function OrderStatus({ order, tableNumber, restaurantId, onStartNewOrder 
                 <div className="bg-white/5 rounded-xl p-4 text-left border border-white/10 mt-8">
                     <h3 className="text-[#D4AF37] text-sm font-bold uppercase tracking-wider mb-3 border-b border-white/10 pb-2">{t("your_order")}</h3>
                     <div className="space-y-2 max-h-40 overflow-y-auto">
-                        {order.items.map((item: any, idx: number) => (
-                            <div key={idx} className="flex flex-col text-sm text-[#f5f3f0] mb-2">
-                                <div className="flex justify-between">
-                                    <span>{item.quantity}x {item.menuItem?.name}</span>
-                                    <span className="text-white/60">{"DA"} {(item.menuItem?.price * item.quantity).toFixed(2)}</span>
+                        {order.items.map((item: any, idx: number) => {
+                            // Calculate item total including modifiers
+                            const itemBaseTotal = (item.menuItem?.price || 0) * item.quantity;
+                            const modifiersTotal = item.modifiers?.reduce((sum: number, mod: any) => {
+                                const modifierPrice = mod.modifier?.price || 0;
+                                return sum + (modifierPrice * mod.quantity);
+                            }, 0) || 0;
+                            const itemTotal = itemBaseTotal + modifiersTotal;
+
+                            return (
+                                <div key={idx} className="flex flex-col text-sm text-[#f5f3f0] mb-3 pb-2 border-b border-white/5 last:border-0">
+                                    <div className="flex justify-between font-medium">
+                                        <span>{item.quantity}x {item.menuItem?.name}</span>
+                                        <span className="text-white/60">{"DA"} {itemBaseTotal.toFixed(2)}</span>
+                                    </div>
+
+                                    {/* Display modifiers/extras */}
+                                    {item.modifiers && item.modifiers.length > 0 && (
+                                        <div className="ml-4 mt-1 space-y-1">
+                                            {item.modifiers.map((mod: any, modIdx: number) => (
+                                                <div key={modIdx} className="flex justify-between text-xs text-[#D4AF37]/80">
+                                                    <span>+ {mod.quantity}x {mod.modifier?.name}</span>
+                                                    <span>{"DA"} {((mod.modifier?.price || 0) * mod.quantity).toFixed(2)}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {item.notes && (
+                                        <span className="text-xs text-[#D4AF37] italic pl-4 mt-1">Note: {item.notes}</span>
+                                    )}
+
+                                    {/* Show item total if there are modifiers */}
+                                    {item.modifiers && item.modifiers.length > 0 && (
+                                        <div className="flex justify-between text-xs text-white/80 mt-1 pl-4 font-medium">
+                                            <span>Item Total:</span>
+                                            <span>{"DA"} {itemTotal.toFixed(2)}</span>
+                                        </div>
+                                    )}
                                 </div>
-                                {item.notes && (
-                                    <span className="text-xs text-[#D4AF37] italic pl-4">Note: {item.notes}</span>
-                                )}
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                     <div className="mt-3 pt-2 border-t border-white/10 flex justify-between text-[#D4AF37] font-bold">
                         <span>{t("total_amount")}</span>

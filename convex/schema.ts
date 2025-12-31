@@ -43,6 +43,9 @@ const applicationTables = {
       latitude: v.number(),
       longitude: v.number(),
     })),
+    // Optional fields for session approval and join window features
+    isApproved: v.optional(v.boolean()),
+    joinWindowExpiresAt: v.optional(v.number()),
   }).index("by_session", ["sessionId"])
     .index("by_restaurant_table_active", ["restaurantId", "tableId", "status"]),
 
