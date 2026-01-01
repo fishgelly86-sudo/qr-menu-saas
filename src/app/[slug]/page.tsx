@@ -399,6 +399,25 @@ export default function CustomerMenuPage() {
         addToCart();
     };
 
+    const handleQuickAdd = (item: any, e: React.MouseEvent) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        const newItem: CartItem = {
+            menuItemId: item._id,
+            name: item.name,
+            price: item.price,
+            quantity: 1,
+            imageUrl: item.imageUrl,
+            modifiers: [],
+        };
+
+        setCart((prev) => [...prev, newItem]);
+        showToast(t("added_to_cart"), "success");
+    };
+
     const addToCart = (upsells: (UpsellItem & { quantity?: number })[] = []) => {
         if (!selectedItem) return;
 
@@ -916,8 +935,13 @@ export default function CustomerMenuPage() {
                                                     {"DA"} {item.price.toFixed(2)}
                                                 </span>
                                                 <div
+                                                    onClick={(e) => {
+                                                        if (item.isAvailable) {
+                                                            handleQuickAdd(item, e);
+                                                        }
+                                                    }}
                                                     className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform shadow-lg shadow-[#1a1a2e]/20 ${item.isAvailable
-                                                        ? "bg-[#1a1a2e] text-[#D4AF37] group-hover:scale-110"
+                                                        ? "bg-[#1a1a2e] text-[#D4AF37] hover:scale-110 active:scale-95"
                                                         : "bg-gray-200 text-gray-400"
                                                         }`}
                                                 >

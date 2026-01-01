@@ -133,10 +133,10 @@ export function OrderStatus({ order, tableNumber, restaurantId, onStartNewOrder 
                             // Calculate item total including modifiers
                             const itemBaseTotal = (item.menuItem?.price || 0) * item.quantity;
                             const modifiersTotal = item.modifiers?.reduce((sum: number, mod: any) => {
-                                const modifierPrice = mod.modifier?.price || 0;
+                                const modifierPrice = mod.price || 0;
                                 return sum + (modifierPrice * mod.quantity);
                             }, 0) || 0;
-                            const itemTotal = itemBaseTotal + modifiersTotal;
+                            const itemTotal = itemBaseTotal + (modifiersTotal * item.quantity);
 
                             return (
                                 <div key={idx} className="flex flex-col text-sm text-[#f5f3f0] mb-3 pb-2 border-b border-white/5 last:border-0">
@@ -150,8 +150,8 @@ export function OrderStatus({ order, tableNumber, restaurantId, onStartNewOrder 
                                         <div className="ml-4 mt-1 space-y-1">
                                             {item.modifiers.map((mod: any, modIdx: number) => (
                                                 <div key={modIdx} className="flex justify-between text-xs text-[#D4AF37]/80">
-                                                    <span>+ {mod.quantity}x {mod.modifier?.name}</span>
-                                                    <span>{"DA"} {((mod.modifier?.price || 0) * mod.quantity).toFixed(2)}</span>
+                                                    <span>+ {mod.quantity}x {mod.name}</span>
+                                                    <span>{"DA"} {(mod.price * mod.quantity).toFixed(2)}</span>
                                                 </div>
                                             ))}
                                         </div>
