@@ -180,5 +180,6 @@
     "no_item_sales_data": "No item sales data yet",
     "no_extras_sales_data": "No extras sales data yet",
     "sold_count": "{count} sold",
-    "revenue": "Revenue"
+    "revenue": "Revenue",
+    "reset_table_confirm": "This will clear all orders and reset the table for new customers. Continue?"
 }

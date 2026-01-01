@@ -32,6 +32,7 @@ export default function AdminDashboard() {
     const updateStatus = useMutation(api.orders.updateOrderStatus);
     const cancelOrder = useMutation(api.orders.cancelOrder);
     const archiveCompletedOrders = useMutation(api.orders.archiveCompletedOrders);
+    const archiveAndClearTable = useMutation(api.orders.archiveAndClearTable);
 
     // Group orders by Table for active sessions - MUST be called unconditionally
     const groupedOrders = useMemo(() => {
@@ -323,6 +324,19 @@ export default function AdminDashboard() {
                                     >
                                         <Printer className="h-4 w-4 mr-1 ml-1" />
                                         {t("print_receipt")}
+                                    </button>
+                                )}
+                                {group.status === "cancelled" && (
+                                    <button
+                                        onClick={async () => {
+                                            if (confirm(t("reset_table_confirm"))) {
+                                                await archiveAndClearTable({ tableId: group.table._id });
+                                            }
+                                        }}
+                                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                    >
+                                        <Trash2 className="h-4 w-4 mr-1 ml-1" />
+                                        {t("delete")}
                                     </button>
                                 )}
                             </div>

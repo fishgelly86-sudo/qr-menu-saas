@@ -8,7 +8,7 @@ import { Plus, QrCode, Trash2, Download, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
-import { QRCodeCanvas } from "qrcode.react";
+import { BrandedQRCode } from "@/components/BrandedQRCode";
 import { useToast } from "@/components/ui/Toast";
 import { useRestaurant } from "../layout";
 
@@ -103,9 +103,11 @@ export default function TablesPage() {
   };
 
   const downloadQR = () => {
-    const canvas = document.getElementById(
-      "qr-code-canvas",
+    // The canvas is now inside the wrapper div
+    const canvas = document.querySelector(
+      "#qr-code-wrapper canvas"
     ) as HTMLCanvasElement;
+
     if (canvas) {
       const pngUrl = canvas.toDataURL("image/png");
       const downloadLink = document.createElement("a");
@@ -251,12 +253,11 @@ export default function TablesPage() {
         <div className="flex flex-col items-center space-y-6 py-4">
           <div className="bg-white p-4 rounded-xl shadow-lg border border-gray-100">
             {selectedTable && (
-              <QRCodeCanvas
-                id="qr-code-canvas"
+              <BrandedQRCode
+                id="qr-code-wrapper"
                 value={`${window.location.origin}/${restaurantSlug}?table=${selectedTable.number}`}
+                logoUrl="/skani-logo.png"
                 size={256}
-                level={"H"}
-                includeMargin={true}
               />
             )}
           </div>

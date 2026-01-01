@@ -183,10 +183,10 @@ export const getOrdersByRestaurant = query({
       orders = orders.filter(o => o._creationTime >= args.minDate!);
     }
 
-    // Filter out cancelled orders by default if no status is specified
+    /* Filter out cancelled orders by default if no status is specified - DISABLED: now showing cancelled orders manually
     if (!args.status) {
       orders = orders.filter(o => o.status !== "cancelled");
-    }
+    } */
 
     // Filter out archived orders
     orders = orders.filter(o => !o.isArchived);
@@ -535,4 +535,43 @@ export const internalArchiveAllCompletedOrders = internalMutation({
     console.log(`Archived ${ordersToArchive.length} orders via cron.`);
     return { archivedCount: ordersToArchive.length };
   }
+});
+
+export const archiveAndClearTable = mutation({
+  args: { tableId: v.id("tables") },
+  handler: async (ctx, args) => {
+    const table = await ctx.db.get(args.tableId);
+    if (!table) throw new Error("Table not found");
+
+    await requireRestaurantManager(ctx, table.restaurantId);
+
+    // 1. Archive all active orders for this table
+    const orders = await ctx.db
+      .query("orders")
+      .withIndex("by_table", (q) => q.eq("tableId", args.tableId))
+      .collect();
+
+    for (const order of orders) {
+      if (!order.isArchived) {
+        await ctx.db.patch(order._id, { isArchived: true });
+      }
+    }
+
+    // 2. Expire active session
+    const activeSession = await ctx.db
+      .query("tableSessions")
+      .withIndex("by_restaurant_table_active", (q: any) =>
+        q.eq("restaurantId", table.restaurantId)
+          .eq("tableId", args.tableId)
+          .eq("status", "active")
+      )
+      .first();
+
+    if (activeSession) {
+      await ctx.db.patch(activeSession._id, { status: "expired" });
+    }
+
+    // 3. Reset table status
+    await ctx.db.patch(args.tableId, { status: "free" });
+  },
 });
