@@ -10,7 +10,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { BrandedQRCode } from "@/components/BrandedQRCode";
 import { useToast } from "@/components/ui/Toast";
-import { useRestaurant } from "../layout";
+import { useRestaurant } from "../RestaurantContext";
 
 import { useLanguage } from "@/contexts/LanguageContext";
 

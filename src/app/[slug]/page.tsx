@@ -30,6 +30,7 @@ import { UpsellModal, UpsellItem } from "@/components/ui/UpsellModal";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { OrderStatus } from "@/components/OrderStatus";
+import { useSafeMutation } from "@/hooks/useSafeMutation";
 
 interface CartItem {
     menuItemId: string;
@@ -141,6 +142,9 @@ export default function CustomerMenuPage() {
     const callWaiter = useMutation(api.waiterCalls.callWaiter);
     const createSession = useMutation(api.sessions.createTableSession);
     const refreshSession = useMutation(api.sessions.refreshSession);
+
+    // Safe Mutation for creating orders (Offline Support)
+    const { mutate: createOrderSafe, isPending: isOrderPending } = useSafeMutation(api.orders.createOrder, "orders:createOrder");
 
 
     // Security: Check Manager Status
@@ -577,42 +581,34 @@ export default function CustomerMenuPage() {
                 })),
             }));
 
-            // Use Secure API Route
-            // Use Secure API Route
-            const response = await fetch("/api/orders", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    restaurantId: menu.restaurant._id,
-                    tableNumber: tableNumber,
-                    sessionId: sessionId,
-                    items,
-                    idempotencyKey,
-                }),
+            // Calculate expected total for validation
+            const expectedTotal = cart.reduce((sum, item) => {
+                const itemBase = item.price * item.quantity;
+                const mods = item.modifiers?.reduce((mSum, m) => mSum + m.price * m.quantity, 0) || 0;
+                return sum + itemBase + mods;
+            }, 0);
+
+            const result = await createOrderSafe({
+                restaurantId: menu.restaurant._id,
+                tableNumber: tableNumber,
+                sessionId: sessionId,
+                items,
+                idempotencyKey,
+                expectedTotal, // Pass for strict validation
+                customerId: undefined, // Optional, can be added if we track customers
             });
 
-            // Parse text first to debug if JSON fails
-            const textHTML = await response.text();
-            let data;
-            try {
-                data = JSON.parse(textHTML);
-            } catch (e) {
-                console.error("Failed to parse JSON:", textHTML);
-                throw new Error("Server returned an invalid response. Please try again.");
+            if (result.queued) {
+                setCart([]);
+                setShowCart(false);
+                showToast("You are offline. Order queued & will sync automatically!", "success");
+                // We don't have an orderId yet, but we can clear the cart.
+                // Maybe setIdempotencyKey?
+                setIdempotencyKey(crypto.randomUUID());
+                return;
             }
 
-            if (!response.ok) {
-                // Handle specific errors
-                if (response.status === 429) {
-                    throw new Error(
-                        t("rate_limit_exceeded") ||
-                        "Too many requests. Please wait a moment."
-                    );
-                }
-                throw new Error(data.error || t("failed_place_order"));
-            }
-
-            const orderId = data.orderId;
+            const orderId = result.data; // result.data is the orderId from convex
 
             setCart([]);
             setShowCart(false);
@@ -625,7 +621,14 @@ export default function CustomerMenuPage() {
             // New cart = new key
             setIdempotencyKey(crypto.randomUUID());
         } catch (error: any) {
-            showToast(error.message, "error");
+            // Check for specific error messages (Convex errors are often wrapped)
+            const msg = error.message || "Failed to place order";
+            if (msg.includes("Price mismatch")) {
+                showToast("Menu prices have changed. Please refresh the page.", "error");
+                // Optional: Trigger menu refresh
+            } else {
+                showToast(msg, "error");
+            }
         }
     };
 

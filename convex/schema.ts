@@ -118,10 +118,12 @@ const applicationTables = {
     orderId: v.id("orders"),
     menuItemId: v.string(),
     quantity: v.number(),
+    price: v.optional(v.number()), // Snapshot price (optional for backward compatibility)
     notes: v.optional(v.string()),
     modifiers: v.optional(v.array(v.object({
       modifierId: v.string(),
-      quantity: v.number()
+      quantity: v.number(),
+      price: v.optional(v.number()) // Snapshot price (optional for backward compatibility)
     }))),
     addedAt: v.number(),
   }).index("by_order", ["orderId"])

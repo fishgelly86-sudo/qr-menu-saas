@@ -6,7 +6,7 @@ import { api } from "../../../../convex/_generated/api";
 import { CheckCircle, Clock, Coffee, DollarSign, Printer, X, Trash2 } from "lucide-react";
 import clsx from "clsx";
 import { useState, useMemo } from "react";
-import { useRestaurant } from "./layout";
+import { useRestaurant } from "./RestaurantContext";
 
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -114,7 +114,7 @@ export default function AdminDashboard() {
                     ${order.items.map((item: any) => `
                         <div class="item">
                             <span>${item.quantity}x ${item.menuItem?.name || 'Unknown Item'}</span>
-                            <span>${restaurant.currency} ${(item.menuItem?.price * item.quantity).toFixed(2)}</span>
+                            <span>${restaurant.currency} ${((item.price ?? item.menuItem?.price) * item.quantity).toFixed(2)}</span>
                         </div>
                         ${item.modifiers ? item.modifiers.map((mod: any) => `
                             <div class="item" style="font-size: 12px; color: #555; padding-${direction === "rtl" ? "right" : "left"}: 20px; margin: 4px 0;">
@@ -244,7 +244,8 @@ export default function AdminDashboard() {
                                                     <span className="text-gray-700">{item.menuItem?.name || "Unknown Item"}</span>
                                                 </div>
                                                 <span className="text-gray-900">
-                                                    {restaurant.currency} {(item.menuItem?.price * item.quantity).toFixed(2)}
+                                                    {/* Use snapshot price if available, else fallback to current price */}
+                                                    {restaurant.currency} {((item.price ?? item.menuItem?.price) * item.quantity).toFixed(2)}
                                                 </span>
                                             </div>
                                             {/* Modifiers */}
@@ -253,6 +254,7 @@ export default function AdminDashboard() {
                                                     {item.modifiers.map((mod: any, mIdx: number) => (
                                                         <div key={mIdx} className="flex justify-between">
                                                             <span>+ {mod.name || "Extra"} (x{mod.quantity})</span>
+                                                            {/* Use snapshot price if available */}
                                                             {mod.price > 0 && (
                                                                 <span>{restaurant.currency} {(mod.price * mod.quantity).toFixed(2)}</span>
                                                             )}

@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/Input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/Accordion";
 import { useToast } from "@/components/ui/Toast";
 import { ImageUpload } from "@/components/ui/ImageUpload";
-import { useRestaurant } from "../layout";
+import { useRestaurant } from "../RestaurantContext";
 
 function AdminItemImage({ item }: { item: any }) {
     const getImageUrl = useAction(api.files.getImageUrl);

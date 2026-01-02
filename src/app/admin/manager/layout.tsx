@@ -39,24 +39,8 @@ export default function ManagerLayout({
     );
 }
 
-import { createContext, useContext } from "react";
 import { Id } from "../../../../convex/_generated/dataModel";
-
-// 1. Create Context
-interface RestaurantContextType {
-    restaurant: any;
-    isLoading: boolean;
-}
-
-const RestaurantContext = createContext<RestaurantContextType | undefined>(undefined);
-
-export function useRestaurant() {
-    const context = useContext(RestaurantContext);
-    if (!context) {
-        throw new Error("useRestaurant must be used within a ManagerLayout");
-    }
-    return context;
-}
+import { RestaurantContext } from "./RestaurantContext";
 
 // Inner component to safely use queries
 function DashboardShell({ children }: { children: React.ReactNode }) {

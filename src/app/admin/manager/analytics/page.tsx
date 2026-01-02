@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/Button";
-import { useRestaurant } from "../layout";
+import { useRestaurant } from "../RestaurantContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function AnalyticsPage() {
