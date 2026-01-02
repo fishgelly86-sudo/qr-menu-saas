@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../../convex/_generated/api";
+import { getConvexUrl } from "@/lib/convex";
 
-const client = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+
 
 export async function POST(req: Request) {
     try {
+        const client = new ConvexHttpClient(getConvexUrl());
         const body = await req.json();
 
         // 1. Basic Validation
