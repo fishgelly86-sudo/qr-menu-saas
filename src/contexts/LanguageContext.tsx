@@ -33,7 +33,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
     // Always start with "en" for both server and client to prevent hydration mismatch
     // The actual user preference will be loaded after mount
-    const [language, setLanguageState] = useState<Language>("en");
+    const [language, setLanguageState] = useState<Language>("ar");
 
     // Set mounted state after first render
     useEffect(() => {
@@ -59,6 +59,9 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
             }
         } else if (savedLang && (savedLang === "en" || savedLang === "ar")) {
             setLanguageState(savedLang);
+        } else {
+            // Default to Arabic for users too
+            setLanguageState("ar");
         }
     }, [mounted, isManager]);
 

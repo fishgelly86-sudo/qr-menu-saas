@@ -1180,10 +1180,12 @@ export default function CustomerMenuPage() {
                         </div>
                         <Button
                             onClick={handlePlaceOrder}
-                            disabled={!tableNumber}
-                            className="w-full h-14 text-lg font-serif tracking-wide animate-glow"
+                            disabled={!tableNumber || isOrderPending}
+                            className="w-full h-14 text-lg font-serif tracking-wide animate-glow transition-all"
                         >
-                            {tableNumber ? t("confirm_order") : t("select_table_first")}
+                            {isOrderPending
+                                ? "Processing..."
+                                : (tableNumber ? t("confirm_order") : t("select_table_first"))}
                         </Button>
                     </div>
                 )}
