@@ -30,16 +30,8 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  webpack: (config) => {
-    if (config.optimization && config.optimization.minimizer) {
-      for (const minimizer of config.optimization.minimizer) {
-        if (minimizer.constructor.name === 'TerserPlugin') {
-          minimizer.options.parallel = false;
-        }
-      }
-    }
-    return config;
-  },
 };
 
-export default withPWA(nextConfig);
+const enablePWA = process.env.ENABLE_PWA === "true";
+
+export default enablePWA ? withPWA(nextConfig) : nextConfig;

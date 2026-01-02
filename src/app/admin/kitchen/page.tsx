@@ -31,8 +31,8 @@ export default function KitchenPage() {
     const [printQueue, setPrintQueue] = useState<any[]>([]);
     const isPrinting = useRef(false);
 
-    // Responsive Mobile Tab State
-    const [activeTab, setActiveTab] = useState<"pending" | "preparing" | "ready">("pending");
+    // Mobile Tab State
+    const [activeTab, setActiveTab] = useState<"new" | "preparing" | "ready">("new");
 
     // Load Printer Settings from LocalStorage
     useEffect(() => {
@@ -307,15 +307,6 @@ export default function KitchenPage() {
 
     return (
         <div className="h-screen flex flex-col relative print:p-0 print:h-auto print:overflow-visible bg-gray-900">
-            <style jsx global>{`
-                .no-scrollbar::-webkit-scrollbar {
-                    display: none;
-                }
-                .no-scrollbar {
-                    -ms-overflow-style: none;
-                    scrollbar-width: none;
-                }
-            `}</style>
             {/* Print Overlay */}
             <div className="hidden print:block fixed inset-0 bg-white z-[9999] p-0 font-mono text-black">
                 <PrintableOrder order={activePrintOrder} />
@@ -338,10 +329,10 @@ export default function KitchenPage() {
                     </div>
                 )}
 
-                <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
-                    <h1 className="text-xl md:text-2xl font-bold text-white">Kitchen Display System</h1>
+                <header className="flex justify-between items-center mb-2">
+                    <h1 className="text-2xl font-bold text-white">Kitchen Display System (Group View)</h1>
 
-                    <div className="flex flex-wrap items-center gap-4 md:gap-6 w-full md:w-auto">
+                    <div className="flex items-center gap-6">
                         <div
                             className="flex items-center gap-3 cursor-pointer bg-gray-800 px-4 py-2 rounded-lg border border-gray-700 hover:bg-gray-750"
                             onClick={() => setIsAutoPrintEnabled(!isAutoPrintEnabled)}
@@ -361,7 +352,7 @@ export default function KitchenPage() {
                             </div>
                         </div>
 
-                        <div className="hidden md:flex gap-4 text-sm font-medium border-l border-gray-700 pl-6">
+                        <div className="flex gap-4 text-sm font-medium">
                             <span className="text-red-400">{pendingGroups.length} New Tables</span>
                             <span className="text-blue-400">{preparingGroups.length} Preparing Tables</span>
                             <span className="text-green-400">{readyGroups.length} Ready Tables</span>
@@ -370,47 +361,44 @@ export default function KitchenPage() {
                 </header>
 
                 {/* Mobile Tab Navigation */}
-                <div className="flex md:hidden gap-2 mb-2 overflow-x-auto pb-2 shrink-0 no-scrollbar">
+                <div className="flex md:hidden gap-2 mb-4">
                     <button
-                        onClick={() => setActiveTab("pending")}
+                        onClick={() => setActiveTab("new")}
                         className={clsx(
-                            "flex-1 py-3 px-2 rounded-xl font-bold text-xs uppercase transition-all whitespace-nowrap border-2",
-                            activeTab === "pending"
-                                ? "bg-red-900/40 border-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.3)]"
-                                : "bg-gray-800 border-gray-700 text-gray-400"
+                            "flex-1 py-3 rounded-lg font-bold text-sm uppercase transition-colors flex items-center justify-center gap-2",
+                            activeTab === "new" ? "bg-red-600/20 text-red-500 border border-red-500/50" : "bg-gray-800 text-gray-500 hover:bg-gray-700"
                         )}
                     >
-                        New ({pendingGroups.length})
+                        New
+                        <span className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">{pendingGroups.length}</span>
                     </button>
                     <button
                         onClick={() => setActiveTab("preparing")}
                         className={clsx(
-                            "flex-1 py-3 px-2 rounded-xl font-bold text-xs uppercase transition-all whitespace-nowrap border-2",
-                            activeTab === "preparing"
-                                ? "bg-blue-900/40 border-blue-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.3)]"
-                                : "bg-gray-800 border-gray-700 text-gray-400"
+                            "flex-1 py-3 rounded-lg font-bold text-sm uppercase transition-colors flex items-center justify-center gap-2",
+                            activeTab === "preparing" ? "bg-blue-600/20 text-blue-500 border border-blue-500/50" : "bg-gray-800 text-gray-500 hover:bg-gray-700"
                         )}
                     >
-                        Prep ({preparingGroups.length})
+                        Prep
+                        <span className="bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full">{preparingGroups.length}</span>
                     </button>
                     <button
                         onClick={() => setActiveTab("ready")}
                         className={clsx(
-                            "flex-1 py-3 px-2 rounded-xl font-bold text-xs uppercase transition-all whitespace-nowrap border-2",
-                            activeTab === "ready"
-                                ? "bg-green-900/40 border-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.3)]"
-                                : "bg-gray-800 border-gray-700 text-gray-400"
+                            "flex-1 py-3 rounded-lg font-bold text-sm uppercase transition-colors flex items-center justify-center gap-2",
+                            activeTab === "ready" ? "bg-green-600/20 text-green-500 border border-green-500/50" : "bg-gray-800 text-gray-500 hover:bg-gray-700"
                         )}
                     >
-                        Ready ({readyGroups.length})
+                        Ready
+                        <span className="bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-full">{readyGroups.length}</span>
                     </button>
                 </div>
 
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 overflow-hidden">
                     {/* NEW / PENDING */}
                     <div className={clsx(
-                        "flex-col bg-gray-900/50 rounded-xl border border-gray-800 overflow-hidden",
-                        activeTab === "pending" ? "flex" : "hidden md:flex"
+                        "flex flex-col bg-gray-900/50 rounded-xl border border-gray-800 overflow-hidden",
+                        activeTab !== "new" && "hidden md:flex"
                     )}>
                         <div className="bg-red-900/20 p-3 border-b border-red-900/30 flex justify-between items-center">
                             <h2 className="text-xl font-bold text-red-500">NEW ORDERS</h2>
@@ -434,8 +422,8 @@ export default function KitchenPage() {
 
                     {/* PREPARING */}
                     <div className={clsx(
-                        "flex-col bg-gray-900/50 rounded-xl border border-gray-800 overflow-hidden",
-                        activeTab === "preparing" ? "flex" : "hidden md:flex"
+                        "flex flex-col bg-gray-900/50 rounded-xl border border-gray-800 overflow-hidden",
+                        activeTab !== "preparing" && "hidden md:flex"
                     )}>
                         <div className="bg-blue-900/20 p-3 border-b border-blue-900/30 flex justify-between items-center">
                             <h2 className="text-xl font-bold text-blue-500">PREPARING</h2>
@@ -458,8 +446,8 @@ export default function KitchenPage() {
 
                     {/* READY */}
                     <div className={clsx(
-                        "flex-col bg-gray-900/50 rounded-xl border border-gray-800 overflow-hidden",
-                        activeTab === "ready" ? "flex" : "hidden md:flex"
+                        "flex flex-col bg-gray-900/50 rounded-xl border border-gray-800 overflow-hidden",
+                        activeTab !== "ready" && "hidden md:flex"
                     )}>
                         <div className="bg-green-900/20 p-3 border-b border-green-900/30 flex justify-between items-center">
                             <h2 className="text-xl font-bold text-green-500">READY FOR PICKUP</h2>

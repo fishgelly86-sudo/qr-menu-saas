@@ -130,9 +130,8 @@ export function OrderStatus({ order, tableNumber, restaurantId, onStartNewOrder 
                     <h3 className="text-[#D4AF37] text-sm font-bold uppercase tracking-wider mb-3 border-b border-white/10 pb-2">{t("your_order")}</h3>
                     <div className="space-y-2 max-h-40 overflow-y-auto">
                         {order.items.map((item: any, idx: number) => {
-                            // Calculate item total using snapshotted price if available, fallback to current menu price
-                            const unitPrice = item.price ?? item.menuItem?.price ?? 0;
-                            const itemBaseTotal = unitPrice * item.quantity;
+                            // Calculate item total including modifiers
+                            const itemBaseTotal = (item.menuItem?.price || 0) * item.quantity;
                             const modifiersTotal = item.modifiers?.reduce((sum: number, mod: any) => {
                                 const modifierPrice = mod.price || 0;
                                 return sum + (modifierPrice * mod.quantity);
@@ -142,14 +141,7 @@ export function OrderStatus({ order, tableNumber, restaurantId, onStartNewOrder 
                             return (
                                 <div key={idx} className="flex flex-col text-sm text-[#f5f3f0] mb-3 pb-2 border-b border-white/5 last:border-0">
                                     <div className="flex justify-between font-medium">
-                                        <div className="flex flex-col">
-                                            <span>{item.quantity}x {item.menuItem?.name}</span>
-                                            {item.quantity > 1 && (
-                                                <span className="text-xs text-white/40">
-                                                    ({unitPrice.toFixed(2)} DA / item)
-                                                </span>
-                                            )}
-                                        </div>
+                                        <span>{item.quantity}x {item.menuItem?.name}</span>
                                         <span className="text-white/60">{"DA"} {itemBaseTotal.toFixed(2)}</span>
                                     </div>
 

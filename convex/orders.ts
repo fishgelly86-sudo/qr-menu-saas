@@ -254,7 +254,7 @@ export const getOrdersByRestaurant = query({
                   return {
                     ...mod,
                     name: modifier?.name || "Unknown Extra",
-                    price: mod.price ?? modifier?.price ?? 0
+                    price: modifier?.price || 0
                   };
                 })
               );
@@ -403,7 +403,7 @@ export const getOrdersByTable = query({
                   return {
                     ...mod,
                     name: modifier?.name || "Unknown Extra",
-                    price: mod.price ?? modifier?.price ?? 0
+                    price: modifier?.price || 0
                   };
                 })
               );
@@ -451,7 +451,7 @@ export const getOrder = query({
               return {
                 ...mod,
                 name: modifier?.name || "Unknown Extra",
-                price: mod.price ?? modifier?.price ?? 0
+                price: modifier?.price || 0
               };
             })
           );
@@ -497,7 +497,7 @@ export const getOrdersByIds = query({
                   return {
                     ...mod,
                     name: modifier?.name || "Unknown Extra",
-                    price: mod.price ?? modifier?.price ?? 0
+                    price: modifier?.price || 0
                   };
                 })
               );
