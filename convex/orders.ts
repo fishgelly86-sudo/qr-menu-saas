@@ -24,6 +24,7 @@ export const createOrder = mutation({
       longitude: v.number(),
     })),
     idempotencyKey: v.optional(v.string()),
+    expectedTotal: v.optional(v.number()), // NEW: Client's calculated total for validation
   },
   handler: async (ctx, args) => {
     // SECURITY 1: Session Validation
@@ -66,40 +67,13 @@ export const createOrder = mutation({
       throw new Error("Cannot place an empty order.");
     }
 
-    // Ensure table is marked as occupied (in case it was free)
-    if (table.status !== "occupied") {
-      await ctx.db.patch(table._id, { status: "occupied" });
-    }
+    // -------------------------------------------------------------------------
+    // PRICE CALCULATION & VALIDATION (Server-Side Authority)
+    // -------------------------------------------------------------------------
+    let serverCalculatedTotal = 0;
+    const itemsToInsert = [];
 
-    // APPEND OR CREATE: Check for active (pending) order for this table
-    const existingActiveOrder = await ctx.db
-      .query("orders")
-      .withIndex("by_table_and_status", q => q.eq("tableId", table._id).eq("status", "pending"))
-      .first();
-
-    let orderId;
-    let currentTotal = 0;
-
-    if (existingActiveOrder) {
-      // Append to existing order
-      orderId = existingActiveOrder._id;
-      currentTotal = existingActiveOrder.totalAmount;
-    } else {
-      // Create new order
-      orderId = await ctx.db.insert("orders", {
-        restaurantId: args.restaurantId,
-        tableId: table._id,
-        status: "pending",
-        totalAmount: 0,
-        customerId: args.customerId,
-        idempotencyKey: args.idempotencyKey,
-      });
-    }
-
-    // Add order items
-    let addedAmount = 0;
-    const addedAt = Date.now();
-
+    // Pre-fetch and calculate everything BEFORE inserting anything
     for (const item of args.items) {
       // Input Validation
       if (item.quantity < 1 || item.quantity > 99) {
@@ -115,30 +89,97 @@ export const createOrder = mutation({
         throw new Error(`Menu item ${dbItem.name} is not available`);
       }
 
+      const itemPrice = (dbItem as any).price; // Snapshot price
       let modifiersTotal = 0;
+      const modifiersToInsert = [];
+
       if (item.modifiers) {
         for (const mod of item.modifiers) {
           const modifier: any = await ctx.db.get(mod.modifierId as any);
           if (!modifier || modifier.restaurantId !== args.restaurantId) {
             throw new Error(`Modifier ${mod.modifierId} not found`);
           }
-          modifiersTotal += modifier.price * mod.quantity;
+          const modPrice = modifier.price; // Snapshot price
+          modifiersTotal += modPrice * mod.quantity;
+
+          modifiersToInsert.push({
+            modifierId: mod.modifierId,
+            quantity: mod.quantity,
+            price: modPrice, // Store snapshot
+          });
         }
       }
 
+      serverCalculatedTotal += (itemPrice * item.quantity) + modifiersTotal;
+
+      itemsToInsert.push({
+        menuItemId: item.menuItemId,
+        quantity: item.quantity,
+        notes: item.notes,
+        modifiers: modifiersToInsert,
+        price: itemPrice, // Store snapshot
+      });
+    }
+
+    // Strict Price Check
+    if (args.expectedTotal !== undefined) {
+      // Allow very small floating point diff (e.g. 0.01)
+      if (Math.abs(serverCalculatedTotal - args.expectedTotal) > 0.05) {
+        console.error(`Price Mismatch! Client: ${args.expectedTotal}, Server: ${serverCalculatedTotal}`);
+        throw new Error("Price mismatch. The menu prices may have changed. Please refresh.");
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // EXECUTE WRITES (Atomic-ish since we validated everything above)
+    // -------------------------------------------------------------------------
+
+    // Ensure table is marked as occupied
+    if (table.status !== "occupied") {
+      await ctx.db.patch(table._id, { status: "occupied" });
+    }
+
+    // APPEND OR CREATE: Check for active (pending) order for this table
+    const existingActiveOrder = await ctx.db
+      .query("orders")
+      .withIndex("by_table_and_status", q => q.eq("tableId", table._id).eq("status", "pending"))
+      .first();
+
+    let orderId;
+    let finalOrderTotal = 0;
+
+    if (existingActiveOrder) {
+      orderId = existingActiveOrder._id;
+      finalOrderTotal = existingActiveOrder.totalAmount + serverCalculatedTotal;
+
+      // Update existing order total
+      await ctx.db.patch(orderId, { totalAmount: finalOrderTotal });
+    } else {
+      finalOrderTotal = serverCalculatedTotal;
+      orderId = await ctx.db.insert("orders", {
+        restaurantId: args.restaurantId,
+        tableId: table._id,
+        status: "pending",
+        totalAmount: finalOrderTotal,
+        customerId: args.customerId,
+        idempotencyKey: args.idempotencyKey,
+      });
+    }
+
+    const addedAt = Date.now();
+
+    // Insert all items
+    for (const item of itemsToInsert) {
       await ctx.db.insert("orderItems", {
         orderId,
         menuItemId: item.menuItemId,
         quantity: item.quantity,
         notes: item.notes,
         modifiers: item.modifiers,
+        price: item.price,
         addedAt,
       });
-
-      addedAmount += ((dbItem as any).price * item.quantity) + modifiersTotal;
     }
-
-    await ctx.db.patch(orderId, { totalAmount: currentTotal + addedAmount });
 
     return orderId;
   },
@@ -213,7 +254,7 @@ export const getOrdersByRestaurant = query({
                   return {
                     ...mod,
                     name: modifier?.name || "Unknown Extra",
-                    price: modifier?.price || 0
+                    price: mod.price ?? modifier?.price ?? 0
                   };
                 })
               );
@@ -362,7 +403,7 @@ export const getOrdersByTable = query({
                   return {
                     ...mod,
                     name: modifier?.name || "Unknown Extra",
-                    price: modifier?.price || 0
+                    price: mod.price ?? modifier?.price ?? 0
                   };
                 })
               );
@@ -410,7 +451,7 @@ export const getOrder = query({
               return {
                 ...mod,
                 name: modifier?.name || "Unknown Extra",
-                price: modifier?.price || 0
+                price: mod.price ?? modifier?.price ?? 0
               };
             })
           );
@@ -456,7 +497,7 @@ export const getOrdersByIds = query({
                   return {
                     ...mod,
                     name: modifier?.name || "Unknown Extra",
-                    price: modifier?.price || 0
+                    price: mod.price ?? modifier?.price ?? 0
                   };
                 })
               );
