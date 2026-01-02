@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -11,6 +11,7 @@
   "dependencies": {
     "@clerk/nextjs": "^6.35.5",
     "@convex-dev/auth": "^0.0.90",
+    "@ducanh2912/next-pwa": "^10.2.9",
     "@oslojs/crypto": "^1.0.1",
     "@radix-ui/react-accordion": "^1.2.12",
     "@types/uuid": "^10.0.0",
@@ -39,6 +40,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.0.4",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "webpack": "^5.104.1"
   }
 }

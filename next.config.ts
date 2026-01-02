@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 const withPWA = require("@ducanh2912/next-pwa").default({
   dest: "public",
-  disable: true, // process.env.NODE_ENV === "development",
+  disable: process.env.NODE_ENV === "development",
 });
 
 const nextConfig: NextConfig = {
@@ -30,6 +30,16 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  webpack: (config) => {
+    if (config.optimization && config.optimization.minimizer) {
+      for (const minimizer of config.optimization.minimizer) {
+        if (minimizer.constructor.name === 'TerserPlugin') {
+          minimizer.options.parallel = false;
+        }
+      }
+    }
+    return config;
+  },
 };
 
-export default nextConfig; // withPWA(nextConfig);
+export default withPWA(nextConfig);
