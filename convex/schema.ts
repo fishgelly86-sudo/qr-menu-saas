@@ -72,6 +72,7 @@ const applicationTables = {
     name_ar: v.optional(v.string()),
     price: v.number(),
     deletedAt: v.optional(v.number()),
+    isAvailable: v.optional(v.boolean()),
   }).index("by_restaurant", ["restaurantId"]),
 
   menuItems: defineTable({

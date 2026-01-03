@@ -19,9 +19,13 @@ export const createModifier = mutation({
         name: v.string(),
         name_ar: v.optional(v.string()),
         price: v.number(),
+        isAvailable: v.optional(v.boolean()),
     },
     handler: async (ctx, args) => {
-        return await ctx.db.insert("modifiers", args);
+        return await ctx.db.insert("modifiers", {
+            ...args,
+            isAvailable: args.isAvailable ?? true,
+        });
     },
 });
 
@@ -31,10 +35,21 @@ export const updateModifier = mutation({
         name: v.optional(v.string()),
         name_ar: v.optional(v.string()),
         price: v.optional(v.number()),
+        isAvailable: v.optional(v.boolean()),
     },
     handler: async (ctx, args) => {
         const { modifierId, ...updates } = args;
         await ctx.db.patch(modifierId, updates);
+    },
+});
+
+export const toggleModifierAvailability = mutation({
+    args: {
+        modifierId: v.id("modifiers"),
+        isAvailable: v.boolean(),
+    },
+    handler: async (ctx, args) => {
+        await ctx.db.patch(args.modifierId, { isAvailable: args.isAvailable });
     },
 });
 

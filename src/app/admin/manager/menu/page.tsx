@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Eye, EyeOff, Save, X, Image as ImageIcon, ChevronDown } from "lucide-react";
+import { Plus, Edit, Trash2, Eye, EyeOff, Save, X, Image as ImageIcon, ChevronDown, Search } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
@@ -66,6 +66,7 @@ export default function MenuManager() {
     const createModifier = useMutation(api.modifiers.createModifier);
     const updateModifier = useMutation(api.modifiers.updateModifier);
     const deleteModifier = useMutation(api.modifiers.deleteModifier);
+    const toggleModAvailability = useMutation(api.modifiers.toggleModifierAvailability);
 
     const [editingItem, setEditingItem] = useState<any>(null);
     const [isAddingItem, setIsAddingItem] = useState(false);
@@ -75,6 +76,9 @@ export default function MenuManager() {
     const [selectedCategory, setSelectedCategory] = useState<string>("");
     const [categoryName, setCategoryName] = useState("");
     const { showToast } = useToast();
+
+    // Search state
+    const [searchQuery, setSearchQuery] = useState("");
 
     // Modifier Form State
     const [modifierForm, setModifierForm] = useState({ id: "", name: "", name_ar: "", price: "" });
@@ -205,51 +209,85 @@ export default function MenuManager() {
         }
     };
 
-    // Wait, I need to check if useToast is imported. It is NOT imported in the original file.
-    // I need to import useToast from "@/components/ui/Toast" first.
-    // And then use it inside the component.
+    // Filter menu based on search query
+    const filteredCategories = menu.categories.map((category: any) => {
+        const filteredItems = category.items.filter((item: any) =>
+            item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()))
+        );
+        return {
+            ...category,
+            items: filteredItems
+        };
+    }).filter((category: any) => category.items.length > 0);
 
     return (
         <div className="min-h-screen bg-gray-50 pb-12">
             <header className="bg-white shadow sticky top-0 z-20">
                 <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t("menu")}</h1>
-                        <div className="flex flex-wrap gap-2 items-center">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setIsModifiersOpen(true)}
-                                className="text-gray-600 border-gray-300 hover:bg-gray-50 flex-1 sm:flex-none"
-                            >
-                                <Edit className="w-4 h-4 mr-2 ml-2" />
-                                {t("modifiers")}
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setIsTrashOpen(true)}
-                                className="text-gray-600 border-gray-300 hover:bg-gray-50 flex-1 sm:flex-none"
-                            >
-                                <Trash2 className="w-4 h-4 mr-2 ml-2" />
-                                {t("trash")}
-                            </Button>
-                            <Button
-                                size="sm"
-                                onClick={() => setIsCategoryModalOpen(true)}
-                                className="bg-green-600 hover:bg-green-700 text-white flex-1 sm:flex-none"
-                            >
-                                <Plus className="w-4 h-4 mr-2 ml-2" />
-                                {t("category")}
-                            </Button>
+                        <div className="flex items-center gap-4">
+                            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t("menu")}</h1>
+                            {/* Search Bar */}
+                            <div className="relative hidden sm:block">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <Input
+                                    placeholder={t("search_items") || "Search items..."}
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="pl-9 w-64 text-black placeholder:text-gray-500 border-gray-300"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                            {/* Mobile Search Bar */}
+                            <div className="relative sm:hidden w-full mb-2">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <Input
+                                    placeholder={t("search_items") || "Search items..."}
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="pl-9 w-full text-black placeholder:text-gray-500 border-gray-300"
+                                />
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 items-center justify-end">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setIsModifiersOpen(true)}
+                                    className="text-gray-600 border-gray-300 hover:bg-gray-50 flex-1 sm:flex-none"
+                                >
+                                    <Edit className="w-4 h-4 mr-2 ml-2" />
+                                    {t("modifiers")}
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setIsTrashOpen(true)}
+                                    className="text-gray-600 border-gray-300 hover:bg-gray-50 flex-1 sm:flex-none"
+                                >
+                                    <Trash2 className="w-4 h-4 mr-2 ml-2" />
+                                    {t("trash")}
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    onClick={() => setIsCategoryModalOpen(true)}
+                                    className="bg-green-600 hover:bg-green-700 text-white flex-1 sm:flex-none"
+                                >
+                                    <Plus className="w-4 h-4 mr-2 ml-2" />
+                                    {t("category")}
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </header>
 
             <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-                <Accordion type="multiple" className="w-full space-y-4">
-                    {menu.categories.map((category: any) => (
+                <Accordion type="multiple" className="w-full space-y-4" value={searchQuery ? filteredCategories.map((c: any) => c._id) : undefined}>
+                    {filteredCategories.map((category: any) => (
                         <AccordionItem key={category._id} value={category._id} className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 sm:px-6">
                             <AccordionTrigger className="hover:no-underline py-6 w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4" hideChevron>
                                 <div className="flex items-center gap-4 w-full sm:w-auto">
@@ -620,10 +658,19 @@ export default function MenuManager() {
                             {menu.modifiers?.map((mod: any) => (
                                 <div key={mod._id} className="flex justify-between items-center p-3 bg-white border border-gray-200 rounded-lg">
                                     <div>
-                                        <p className="font-medium text-gray-900">{mod.name}</p>
+                                        <p className={`font-medium ${mod.isAvailable === false ? "text-gray-400 line-through" : "text-gray-900"}`}>{mod.name}</p>
                                         <p className="text-xs text-gray-500">{mod.price} DA</p>
                                     </div>
                                     <div className="flex gap-2">
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => toggleModAvailability({ modifierId: mod._id, isAvailable: mod.isAvailable === false })}
+                                            className={mod.isAvailable === false ? "text-green-600 hover:bg-green-50" : "text-orange-500 hover:bg-orange-50"}
+                                            title={mod.isAvailable === false ? t("make_available") || "Make Available" : t("make_unavailable") || "Make Unavailable"}
+                                        >
+                                            {mod.isAvailable === false ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                                        </Button>
                                         <Button
                                             size="sm"
                                             variant="ghost"
