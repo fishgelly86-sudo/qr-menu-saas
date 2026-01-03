@@ -711,10 +711,10 @@ export default function CustomerMenuPage() {
         );
     }
 
-    if (currentOrderId && trackedOrder) {
+    if (currentOrderId && activeOrders && activeOrders.length > 0) {
         return (
             <OrderStatus
-                order={trackedOrder}
+                orders={activeOrders}
                 tableNumber={tableNumber}
                 restaurantId={menu.restaurant._id}
                 onStartNewOrder={() => setCurrentOrderId(null)}

@@ -7,16 +7,25 @@ import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
 interface OrderStatusProps {
-    order: any;
+    orders: any[];
     tableNumber: string | null;
     restaurantId: string;
     onStartNewOrder: () => void;
 }
 
-export function OrderStatus({ order, tableNumber, restaurantId, onStartNewOrder }: OrderStatusProps) {
+export function OrderStatus({ orders, tableNumber, restaurantId, onStartNewOrder }: OrderStatusProps) {
     const { t, direction } = useLanguage();
     const [showWaiterDialog, setShowWaiterDialog] = useState(false);
-    const callWaiter = useMutation(api.waiterCalls.callWaiter); // Need to pass calls or use mutation here
+    const callWaiter = useMutation(api.waiterCalls.callWaiter);
+
+    // Use the most recent order for status tracking
+    const latestOrder = orders && orders.length > 0 ? orders[orders.length - 1] : null;
+
+    if (!latestOrder) {
+        return <div className="text-white">No active orders</div>;
+    }
+
+    const combinedTotal = orders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
 
     const statusTranslations: Record<string, string> = {
         pending: 'قيد الانتظار',
@@ -50,8 +59,8 @@ export function OrderStatus({ order, tableNumber, restaurantId, onStartNewOrder 
         { status: "served", label: t("bon_appetit") || "Bon Appétit", icon: Utensils },
     ];
 
-    const currentStepIndex = steps.findIndex(s => s.status === order.status);
-    const activeIndex = order.status === 'paid' ? 3 : (currentStepIndex === -1 ? 0 : currentStepIndex);
+    const currentStepIndex = steps.findIndex(s => s.status === latestOrder.status);
+    const activeIndex = latestOrder.status === 'paid' ? 3 : (currentStepIndex === -1 ? 0 : currentStepIndex);
 
     const handleCallWaiter = async (type: "bill" | "help") => {
         if (!restaurantId || !tableNumber) return;
@@ -90,7 +99,7 @@ export function OrderStatus({ order, tableNumber, restaurantId, onStartNewOrder 
                         {steps[activeIndex].label}
                     </h1>
                     <p className="text-[#f5f3f0]/80 font-light">
-                        {t("table_no")} {tableNumber} • Order #{order._id.slice(-4)}
+                        {t("table_no")} {tableNumber}
                     </p>
                 </div>
 
@@ -128,63 +137,72 @@ export function OrderStatus({ order, tableNumber, restaurantId, onStartNewOrder 
                 {/* Order Details Preview */}
                 <div className="bg-white/5 rounded-xl p-4 text-left border border-white/10 mt-8">
                     <h3 className="text-[#D4AF37] text-sm font-bold uppercase tracking-wider mb-3 border-b border-white/10 pb-2">{t("your_order")}</h3>
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                        {order.items.map((item: any, idx: number) => {
-                            // Calculate item total including modifiers
-                            const itemBaseTotal = (item.menuItem?.price || 0) * item.quantity;
-                            const modifiersTotal = item.modifiers?.reduce((sum: number, mod: any) => {
-                                const modifierPrice = mod.price || 0;
-                                return sum + (modifierPrice * mod.quantity);
-                            }, 0) || 0;
-                            const itemTotal = itemBaseTotal + modifiersTotal;
 
-                            return (
-                                <div key={idx} className="flex flex-col text-sm text-[#f5f3f0] mb-3 pb-2 border-b border-white/5 last:border-0">
-                                    {/* Main Item Line */}
-                                    <div className="flex justify-between items-baseline font-medium mb-1">
-                                        <span className="text-base text-[#f5f3f0]">{item.menuItem?.name} <span className="text-[#D4AF37]">×{item.quantity}</span></span>
-                                        <span className="text-[#f5f3f0]">{"DA"} {itemBaseTotal.toFixed(2)}</span>
-                                    </div>
-
-                                    {/* Unit Price Hint (if qty > 1) */}
-                                    {item.quantity > 1 && (
-                                        <div className="text-xs text-white/40 mb-2 -mt-1">
-                                            DA {item.menuItem?.price.toFixed(2)} {(t as any)("each") || "each"}
-                                        </div>
-                                    )}
-
-                                    {/* Modifiers List */}
-                                    {item.modifiers && item.modifiers.length > 0 && (
-                                        <div className="space-y-1 mb-2">
-                                            {item.modifiers.map((mod: any, modIdx: number) => (
-                                                <div key={modIdx} className="flex justify-between text-sm text-[#D4AF37]/80 pl-2 border-l border-[#D4AF37]/20">
-                                                    <span>{mod.name} {mod.quantity > 1 ? `×${mod.quantity}` : ''}</span>
-                                                    <span>+ DA {(mod.price * mod.quantity).toFixed(2)}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    {item.notes && (
-                                        <div className="text-xs text-white/50 italic mb-2 pl-2">
-                                            "{item.notes}"
-                                        </div>
-                                    )}
-
-                                    {/* Item Total (only if modifiers exist) */}
-                                    {item.modifiers && item.modifiers.length > 0 && (
-                                        <div className="flex justify-end pt-1 border-t border-white/5">
-                                            <span className="text-xs text-white/40 uppercase tracking-widest mr-2 mt-0.5">{(t as any)("item_total") || "Item Total"}:</span>
-                                            <span className="text-sm font-bold text-[#D4AF37]">DA {itemTotal.toFixed(2)}</span>
-                                        </div>
-                                    )}
+                    <div className="space-y-6 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                        {orders.map((order) => (
+                            <div key={order._id} className="space-y-2">
+                                <div className="text-xs text-white/30 uppercase tracking-widest mb-1 border-b border-white/5 pb-1">
+                                    Order #{order._id.slice(-4)} • {getStatusLabel(order.status)}
                                 </div>
-                            );
-                        })}
+                                {order.items.map((item: any, idx: number) => {
+                                    // Calculate item total including modifiers
+                                    const itemBaseTotal = (item.menuItem?.price || 0) * item.quantity;
+                                    const modifiersTotal = item.modifiers?.reduce((sum: number, mod: any) => {
+                                        const modifierPrice = mod.price || 0;
+                                        return sum + (modifierPrice * mod.quantity);
+                                    }, 0) || 0;
+                                    const itemTotal = itemBaseTotal + modifiersTotal;
+
+                                    return (
+                                        <div key={idx} className="flex flex-col text-sm text-[#f5f3f0] mb-3 pb-2 border-b border-white/5 last:border-0 last:mb-0 last:pb-0">
+                                            {/* Main Item Line */}
+                                            <div className="flex justify-between items-baseline font-medium mb-1">
+                                                <span className="text-base text-[#f5f3f0]">{item.menuItem?.name} <span className="text-[#D4AF37]">×{item.quantity}</span></span>
+                                                <span className="text-[#f5f3f0]">{"DA"} {itemBaseTotal.toFixed(2)}</span>
+                                            </div>
+
+                                            {/* Unit Price Hint (if qty > 1) */}
+                                            {item.quantity > 1 && (
+                                                <div className="text-xs text-white/40 mb-2 -mt-1">
+                                                    DA {item.menuItem?.price.toFixed(2)} {(t as any)("each") || "each"}
+                                                </div>
+                                            )}
+
+                                            {/* Modifiers List */}
+                                            {item.modifiers && item.modifiers.length > 0 && (
+                                                <div className="space-y-1 mb-2">
+                                                    {item.modifiers.map((mod: any, modIdx: number) => (
+                                                        <div key={modIdx} className="flex justify-between text-sm text-[#D4AF37]/80 pl-2 border-l border-[#D4AF37]/20">
+                                                            <span>{mod.name} {mod.quantity > 1 ? `×${mod.quantity}` : ''}</span>
+                                                            <span>+ DA {(mod.price * mod.quantity).toFixed(2)}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {item.notes && (
+                                                <div className="text-xs text-white/50 italic mb-2 pl-2">
+                                                    "{item.notes}"
+                                                </div>
+                                            )}
+
+                                            {/* Item Total (only if modifiers exist) */}
+                                            {item.modifiers && item.modifiers.length > 0 && (
+                                                <div className="flex justify-end pt-1 border-t border-white/5">
+                                                    <span className="text-xs text-white/40 uppercase tracking-widest mr-2 mt-0.5">{(t as any)("item_total") || "Item Total"}:</span>
+                                                    <span className="text-sm font-bold text-[#D4AF37]">DA {itemTotal.toFixed(2)}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ))}
                     </div>
-                    <div className="mt-3 pt-2 border-t border-white/10 flex justify-between text-[#D4AF37] font-bold">
+
+                    <div className="mt-3 pt-2 border-t border-white/10 flex justify-between text-[#D4AF37] font-bold text-lg">
                         <span>{t("total_amount")}</span>
-                        <span>{"DA"} {order.totalAmount.toFixed(2)}</span>
+                        <span>{"DA"} {combinedTotal.toFixed(2)}</span>
                     </div>
                 </div>
 
