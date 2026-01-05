@@ -20,6 +20,12 @@ import {
     Utensils, Pizza, Coffee, Soup, Salad, Beer, Wine, Flame, Cake, IceCream
 } from "lucide-react";
 
+const iconMap = {
+    Utensils, Pizza, Coffee, Soup, Salad, Beer, Wine, Flame, Cake, IceCream
+} as const;
+
+type IconName = keyof typeof iconMap;
+
 // UI Components
 import { Button } from "@/components/ui/Button";
 import { Drawer } from "@/components/ui/Drawer";
@@ -64,9 +70,9 @@ export default function CustomerMenuPage() {
 
     const CategoryIcon = ({ iconName, className }: { iconName?: string; className?: string }) => {
         if (!iconName) return null;
-        const Icon = {
-            Utensils, Pizza, Coffee, Soup, Salad, Beer, Wine, Flame, Cake, IceCream
-        }[iconName] as any;
+        // const Icon = iconMap[iconName as IconName];
+        // Safe check
+        const Icon = iconMap[iconName as IconName];
         return Icon ? <Icon className={className || "w-4 h-4"} /> : null;
     };
 

@@ -8,6 +8,12 @@ import {
     Image as ImageIcon, ChevronDown, Search,
     Utensils, Pizza, Coffee, Soup, Salad, Beer, Wine, Flame, Cake, IceCream
 } from "lucide-react";
+
+const iconMap = {
+    Utensils, Pizza, Coffee, Soup, Salad, Beer, Wine, Flame, Cake, IceCream
+} as const;
+
+type IconName = keyof typeof iconMap;
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
@@ -300,9 +306,8 @@ export default function MenuManager() {
                                     <ChevronDown className="h-5 w-5 shrink-0 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
                                     <h2 className="text-xl font-bold text-gray-800 text-left flex items-center gap-2">
                                         {category.icon && (() => {
-                                            const Icon = {
-                                                Utensils, Pizza, Coffee, Soup, Salad, Beer, Wine, Flame, Cake, IceCream
-                                            }[category.icon] as any;
+                                            const iconName = category.icon as IconName;
+                                            const Icon = iconMap[iconName];
                                             return Icon ? <Icon className="w-5 h-5 text-[#D4AF37]" /> : null;
                                         })()}
                                         {category.name}
@@ -790,8 +795,8 @@ export default function MenuManager() {
                                     type="button"
                                     onClick={() => setCategoryForm({ ...categoryForm, icon: item.name })}
                                     className={`p-3 rounded-lg flex items-center justify-center transition-all ${categoryForm.icon === item.name
-                                            ? "bg-[#1a1a2e] text-[#D4AF37] scale-110 shadow-md"
-                                            : "bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                        ? "bg-[#1a1a2e] text-[#D4AF37] scale-110 shadow-md"
+                                        : "bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
                                         }`}
                                 >
                                     <item.icon size={24} />
