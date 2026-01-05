@@ -3,7 +3,11 @@
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Eye, EyeOff, Save, X, Image as ImageIcon, ChevronDown, Search } from "lucide-react";
+import {
+    Plus, Edit, Trash2, Eye, EyeOff, Save, X,
+    Image as ImageIcon, ChevronDown, Search,
+    Utensils, Pizza, Coffee, Soup, Salad, Beer, Wine, Flame, Cake, IceCream
+} from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
@@ -60,6 +64,7 @@ export default function MenuManager() {
     const undoDeleteItem = useMutation(api.menuItems.undoDeleteMenuItem);
 
     const createCategory = useMutation(api.categories.createCategory);
+    const updateCategory = useMutation(api.categories.updateCategory);
     const deleteCategory = useMutation(api.categories.deleteCategory);
     const undoDeleteCategory = useMutation(api.categories.undoDeleteCategory);
 
@@ -72,9 +77,10 @@ export default function MenuManager() {
     const [isAddingItem, setIsAddingItem] = useState(false);
     const [isTrashOpen, setIsTrashOpen] = useState(false);
     const [isModifiersOpen, setIsModifiersOpen] = useState(false);
+    const [editingCategory, setEditingCategory] = useState<any>(null);
     const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<string>("");
-    const [categoryName, setCategoryName] = useState("");
+    const [categoryForm, setCategoryForm] = useState({ name: "", name_ar: "", icon: "" });
     const { showToast } = useToast();
 
     // Search state
@@ -292,12 +298,39 @@ export default function MenuManager() {
                             <AccordionTrigger className="hover:no-underline py-6 w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4" hideChevron>
                                 <div className="flex items-center gap-4 w-full sm:w-auto">
                                     <ChevronDown className="h-5 w-5 shrink-0 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
-                                    <h2 className="text-xl font-bold text-gray-800 text-left">{category.name}</h2>
+                                    <h2 className="text-xl font-bold text-gray-800 text-left flex items-center gap-2">
+                                        {category.icon && (() => {
+                                            const Icon = {
+                                                Utensils, Pizza, Coffee, Soup, Salad, Beer, Wine, Flame, Cake, IceCream
+                                            }[category.icon] as any;
+                                            return Icon ? <Icon className="w-5 h-5 text-[#D4AF37]" /> : null;
+                                        })()}
+                                        {category.name}
+                                        {category.name_ar && <span className="text-sm font-normal text-gray-400">({category.name_ar})</span>}
+                                    </h2>
                                     <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full whitespace-nowrap">
                                         {category.items.length} {t("items")}
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2 w-full sm:w-auto pl-9 sm:pl-0">
+                                    <div
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditingCategory(category);
+                                            setCategoryForm({
+                                                name: category.name,
+                                                name_ar: category.name_ar || "",
+                                                icon: category.icon || ""
+                                            });
+                                            setIsCategoryModalOpen(true);
+                                        }}
+                                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                        title="Edit Category"
+                                    >
+                                        <Edit className="w-5 h-5" />
+                                    </div>
                                     <div
                                         role="button"
                                         tabIndex={0}
@@ -711,57 +744,110 @@ export default function MenuManager() {
                 isOpen={isCategoryModalOpen}
                 onClose={() => {
                     setIsCategoryModalOpen(false);
-                    setCategoryName("");
+                    setEditingCategory(null);
+                    setCategoryForm({ name: "", name_ar: "", icon: "" });
                 }}
-                title={t("add_new_category")}
+                title={editingCategory ? t("edit" as any) || "Edit Category" : t("add_new_category")}
             >
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">{t("category_name")}</label>
                         <Input
-                            value={categoryName}
-                            onChange={e => setCategoryName(e.target.value)}
+                            value={categoryForm.name}
+                            onChange={e => setCategoryForm({ ...categoryForm, name: e.target.value })}
                             placeholder="e.g. Appetizers, Main Courses, Desserts"
                             className="text-black placeholder:text-gray-500 border-gray-300"
                             autoFocus
                         />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t("category_name")} (Arabic)</label>
+                        <Input
+                            value={categoryForm.name_ar}
+                            onChange={e => setCategoryForm({ ...categoryForm, name_ar: e.target.value })}
+                            placeholder="مثلاً: المقبلات، الأطباق الرئيسية"
+                            className="text-black placeholder:text-gray-500 border-gray-300 text-right"
+                            dir="rtl"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Category Icon</label>
+                        <div className="grid grid-cols-5 gap-2 p-2 border border-gray-200 rounded-lg">
+                            {[
+                                { name: "Utensils", icon: Utensils },
+                                { name: "Pizza", icon: Pizza },
+                                { name: "Coffee", icon: Coffee },
+                                { name: "Soup", icon: Soup },
+                                { name: "Salad", icon: Salad },
+                                { name: "Beer", icon: Beer },
+                                { name: "Wine", icon: Wine },
+                                { name: "Flame", icon: Flame },
+                                { name: "Cake", icon: Cake },
+                                { name: "IceCream", icon: IceCream },
+                            ].map((item) => (
+                                <button
+                                    key={item.name}
+                                    type="button"
+                                    onClick={() => setCategoryForm({ ...categoryForm, icon: item.name })}
+                                    className={`p-3 rounded-lg flex items-center justify-center transition-all ${categoryForm.icon === item.name
+                                            ? "bg-[#1a1a2e] text-[#D4AF37] scale-110 shadow-md"
+                                            : "bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                        }`}
+                                >
+                                    <item.icon size={24} />
+                                </button>
+                            ))}
+                        </div>
                     </div>
                     <div className="flex justify-end gap-3 pt-4">
                         <Button
                             variant="ghost"
                             onClick={() => {
                                 setIsCategoryModalOpen(false);
-                                setCategoryName("");
+                                setEditingCategory(null);
+                                setCategoryForm({ name: "", name_ar: "", icon: "" });
                             }}
                         >
                             {t("cancel")}
                         </Button>
                         <Button
                             onClick={async () => {
-                                if (!categoryName.trim()) {
+                                if (!categoryForm.name.trim()) {
                                     showToast(t("enter_category_name_error"), "error");
                                     return;
                                 }
                                 if (!menu.restaurant) return;
 
-                                // Calculate next rank
-                                const maxRank = menu.categories.reduce((max: number, cat: any) =>
-                                    Math.max(max, cat.rank || 0), 0
-                                );
+                                if (editingCategory) {
+                                    await updateCategory({
+                                        categoryId: editingCategory._id,
+                                        name: categoryForm.name,
+                                        name_ar: categoryForm.name_ar,
+                                        icon: categoryForm.icon
+                                    });
+                                    showToast(t("save_changes_success" as any) || "Category updated successfully", "success");
+                                } else {
+                                    const maxRank = menu.categories.reduce((max: number, cat: any) =>
+                                        Math.max(max, cat.rank || 0), 0
+                                    );
 
-                                await createCategory({
-                                    restaurantId: menu.restaurant._id,
-                                    name: categoryName,
-                                    rank: maxRank + 1
-                                });
+                                    await createCategory({
+                                        restaurantId: menu.restaurant._id,
+                                        name: categoryForm.name,
+                                        name_ar: categoryForm.name_ar,
+                                        icon: categoryForm.icon,
+                                        rank: maxRank + 1
+                                    });
+                                    showToast(t("category_created_success"), "success");
+                                }
 
-                                showToast(t("category_created_success"), "success");
                                 setIsCategoryModalOpen(false);
-                                setCategoryName("");
+                                setEditingCategory(null);
+                                setCategoryForm({ name: "", name_ar: "", icon: "" });
                             }}
                             className="bg-[#D4AF37] text-white hover:bg-[#c4a027]"
                         >
-                            {t("create_category")}
+                            {editingCategory ? t("save_changes") : t("create_category")}
                         </Button>
                     </div>
                 </div>

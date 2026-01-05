@@ -18,10 +18,26 @@ export const createCategory = mutation({
   args: {
     restaurantId: v.id("restaurants"),
     name: v.string(),
+    name_ar: v.optional(v.string()),
+    icon: v.optional(v.string()),
     rank: v.number(),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("categories", args);
+  },
+});
+
+export const updateCategory = mutation({
+  args: {
+    categoryId: v.id("categories"),
+    name: v.optional(v.string()),
+    name_ar: v.optional(v.string()),
+    icon: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { categoryId, ...updates } = args;
+    await ctx.db.patch(categoryId, updates);
+    return categoryId;
   },
 });
 

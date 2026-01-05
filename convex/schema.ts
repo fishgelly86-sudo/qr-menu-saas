@@ -61,6 +61,8 @@ const applicationTables = {
   categories: defineTable({
     restaurantId: v.id("restaurants"),
     name: v.string(),
+    name_ar: v.optional(v.string()),
+    icon: v.optional(v.string()),
     rank: v.number(),
     deletedAt: v.optional(v.number()),
   }).index("by_restaurant", ["restaurantId"])

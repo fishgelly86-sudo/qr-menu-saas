@@ -17,6 +17,7 @@ import {
     X,
     Clock,
     AlertTriangle,
+    Utensils, Pizza, Coffee, Soup, Salad, Beer, Wine, Flame, Cake, IceCream
 } from "lucide-react";
 
 // UI Components
@@ -59,6 +60,14 @@ export default function CustomerMenuPage() {
         served: "تم التقديم",
         paid: "مدفوع",
         cancelled: "ملغى",
+    };
+
+    const CategoryIcon = ({ iconName, className }: { iconName?: string; className?: string }) => {
+        if (!iconName) return null;
+        const Icon = {
+            Utensils, Pizza, Coffee, Soup, Salad, Beer, Wine, Flame, Cake, IceCream
+        }[iconName] as any;
+        return Icon ? <Icon className={className || "w-4 h-4"} /> : null;
     };
 
     const getStatusLabel = (status: string) => {
@@ -854,14 +863,15 @@ export default function CustomerMenuPage() {
                                     key={category._id}
                                     onClick={() => scrollToCategory(category._id)}
                                     className={`
-                                        px-5 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all border
+                                        px-5 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all border flex items-center gap-2
                                         ${activeCategoryId === category._id
                                             ? "bg-[#1a1a2e] text-[#D4AF37] border-[#1a1a2e] shadow-lg shadow-[#1a1a2e]/20"
                                             : "bg-white text-[#1a1a2e]/70 border-[#D4AF37]/20 hover:border-[#D4AF37]"
                                         }
                                     `}
                                 >
-                                    {category.name}
+                                    <CategoryIcon iconName={category.icon} className="w-4 h-4" />
+                                    {language === "ar" && category.name_ar ? category.name_ar : category.name}
                                 </button>
                             ))}
                         </div>
@@ -880,8 +890,9 @@ export default function CustomerMenuPage() {
                         className="space-y-5"
                     >
                         <h2 className="text-2xl font-serif text-[#1a1a2e] flex items-center gap-3 relative">
-                            <span className="relative z-10 bg-[#f5f3f0] pr-4">
-                                {category.name}
+                            <span className="relative z-10 bg-[#f5f3f0] pr-4 flex items-center gap-2">
+                                <CategoryIcon iconName={category.icon} className="w-6 h-6 text-[#D4AF37]" />
+                                {language === "ar" && category.name_ar ? category.name_ar : category.name}
                             </span>
                             <div className="absolute left-0 right-0 top-1/2 h-px bg-[#D4AF37]/20 -z-0" />
                         </h2>
