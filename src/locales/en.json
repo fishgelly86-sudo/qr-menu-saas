@@ -186,5 +186,15 @@
     "reset_table_confirm": "This will clear all orders and reset the table for new customers. Continue?",
     "search_items": "Search items...",
     "make_available": "Make Available",
-    "make_unavailable": "Make Unavailable"
+    "make_unavailable": "Make Unavailable",
+    "daily_review": "Daily Review",
+    "overview": "Overview",
+    "select_date": "Select Date",
+    "previous_day": "Previous Day",
+    "next_day": "Next Day",
+    "no_data_for_date": "No orders on this date",
+    "vs_previous_day": "vs Previous Day",
+    "hourly_breakdown": "Hourly Breakdown",
+    "performance_indicators": "Performance Indicators",
+    "view_full_report": "View Full Report"
 }

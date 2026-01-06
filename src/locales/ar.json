@@ -186,5 +186,15 @@
     "reset_table_confirm": "سيؤدي هذا إلى مسح جميع الطلبات وإعادة تعيين الطاولة لعملاء جدد. هل تود الاستمرار؟",
     "search_items": "بحث في العناصر...",
     "make_available": "جعله متاحاً",
-    "make_unavailable": "جعله غير متاح"
+    "make_unavailable": "جعله غير متاح",
+    "daily_review": "مراجعة يومية",
+    "overview": "نظرة عامة",
+    "select_date": "اختر التاريخ",
+    "previous_day": "اليوم السابق",
+    "next_day": "اليوم التالي",
+    "no_data_for_date": "لا توجد طلبات في هذا التاريخ",
+    "vs_previous_day": "مقابل اليوم السابق",
+    "hourly_breakdown": "توزيع الساعات",
+    "performance_indicators": "مؤشرات الأداء",
+    "view_full_report": "عرض التقرير الكامل"
 }

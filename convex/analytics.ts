@@ -174,3 +174,53 @@ export const getDashboardStats = query({
         };
     },
 });
+
+export const getCalendarData = query({
+    args: {
+        restaurantId: v.id("restaurants"),
+        days: v.optional(v.number()), // Number of days to look back
+    },
+    handler: async (ctx, args) => {
+        const numDays = args.days || 30;
+        const now = new Date();
+        const results = [];
+
+        const allOrders = await ctx.db
+            .query("orders")
+            .withIndex("by_restaurant", (q) =>
+                q.eq("restaurantId", args.restaurantId)
+            )
+            .collect();
+
+        for (let i = 0; i < numDays; i++) {
+            const date = new Date(now);
+            date.setDate(date.getDate() - i);
+
+            const startOfDay = new Date(date);
+            startOfDay.setHours(0, 0, 0, 0);
+            const endOfDay = new Date(date);
+            endOfDay.setHours(23, 59, 59, 999);
+
+            const startTime = startOfDay.getTime();
+            const endTime = endOfDay.getTime();
+
+            const dayOrders = allOrders.filter(o =>
+                o._creationTime >= startTime &&
+                o._creationTime <= endTime &&
+                o.status !== "cancelled"
+            );
+
+            const paidOrders = dayOrders.filter(o => o.status === "paid");
+            const revenue = paidOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+
+            results.push({
+                date: startTime,
+                revenue,
+                orderCount: dayOrders.length,
+            });
+        }
+
+
+        return results;
+    },
+});
