@@ -40,6 +40,7 @@ import type * as subscriptions from "../subscriptions.js";
 import type * as superAdmin from "../superAdmin.js";
 import type * as superAdminAuth from "../superAdminAuth.js";
 import type * as tables from "../tables.js";
+import type * as updateBurgerBistroCategories from "../updateBurgerBistroCategories.js";
 import type * as updateCurrency from "../updateCurrency.js";
 import type * as utils from "../utils.js";
 import type * as waiterCalls from "../waiterCalls.js";
@@ -83,6 +84,7 @@ declare const fullApi: ApiFromModules<{
   superAdmin: typeof superAdmin;
   superAdminAuth: typeof superAdminAuth;
   tables: typeof tables;
+  updateBurgerBistroCategories: typeof updateBurgerBistroCategories;
   updateCurrency: typeof updateCurrency;
   utils: typeof utils;
   waiterCalls: typeof waiterCalls;
