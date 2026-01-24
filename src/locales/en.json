@@ -205,5 +205,9 @@
     "order_verification": "Order Verification",
     "order_verification_desc": "Control how orders are processed and verified.",
     "require_manager_approval": "Require Manager Approval",
-    "require_manager_approval_desc": "If enabled, new orders will require manual approval from the Waiter Dashboard before being sent to the kitchen."
+    "require_manager_approval_desc": "If enabled, new orders will require manual approval from the Waiter Dashboard before being sent to the kitchen.",
+    "browse_menu": "Browse Menu",
+    "needs_approval_client": "Needs Approval",
+    "call_waiter_hint": "Please call waiter for assistance",
+    "add_more_items": "Add more items"
 }

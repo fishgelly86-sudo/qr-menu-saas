@@ -205,5 +205,9 @@
     "order_verification": "التحقق من الطلبات",
     "order_verification_desc": "التحكم في كيفية معالجة الطلبات والتحقق منها.",
     "require_manager_approval": "تفعيل موافقة المدير",
-    "require_manager_approval_desc": "عند التفعيل، ستحتاج الطلبات الجديدة إلى موافقة يدوية من لوحة النادل قبل إرسالها إلى المطبخ."
+    "require_manager_approval_desc": "عند التفعيل، ستحتاج الطلبات الجديدة إلى موافقة يدوية من لوحة النادل قبل إرسالها إلى المطبخ.",
+    "browse_menu": "تصفح القائمة",
+    "needs_approval_client": "بانتظار الموافقة",
+    "call_waiter_hint": "يرجى طلب النادل للمساعدة",
+    "add_more_items": "إضافة إضافات"
 }

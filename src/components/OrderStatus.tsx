@@ -1,4 +1,4 @@
-import { Bell, BellRing, ChefHat, Clock, Utensils } from "lucide-react";
+import { Bell, BellRing, ChefHat, Clock, Utensils, AlertTriangle } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
@@ -28,6 +28,7 @@ export function OrderStatus({ orders, tableNumber, restaurantId, onStartNewOrder
     const combinedTotal = orders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
 
     const statusTranslations: Record<string, string> = {
+        needs_approval: t("needs_approval_client") || 'Pending Approval',
         pending: 'قيد الانتظار',
         preparing: 'قيد التحضير',
         ready: 'جاهز',
@@ -42,6 +43,7 @@ export function OrderStatus({ orders, tableNumber, restaurantId, onStartNewOrder
             return statusTranslations[lower];
         }
         const englishLabels: Record<string, string> = {
+            needs_approval: t("needs_approval_client") || 'Pending Approval',
             pending: 'Order Placed',
             preparing: 'Preparing',
             ready: 'Ready',
@@ -53,6 +55,7 @@ export function OrderStatus({ orders, tableNumber, restaurantId, onStartNewOrder
     };
 
     const steps = [
+        { status: "needs_approval", label: t("needs_approval_client"), icon: AlertTriangle },
         { status: "pending", label: t("order_sent") || "Order Placed", icon: Clock },
         { status: "preparing", label: t("chef_is_cooking") || "Preparing", icon: ChefHat },
         { status: "ready", label: t("ready_to_serve") || "Ready!", icon: Bell },
@@ -98,6 +101,11 @@ export function OrderStatus({ orders, tableNumber, restaurantId, onStartNewOrder
                     <h1 className="text-3xl font-serif text-[#D4AF37] font-bold">
                         {steps[activeIndex].label}
                     </h1>
+                    {latestOrder.status === 'needs_approval' && (
+                        <p className="text-red-400 font-medium text-sm animate-pulse">
+                            {t("call_waiter_hint")}
+                        </p>
+                    )}
                     <p className="text-[#f5f3f0]/80 font-light">
                         {t("table_no")} {tableNumber}
                     </p>

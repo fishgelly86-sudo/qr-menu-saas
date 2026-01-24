@@ -60,6 +60,7 @@ export default function CustomerMenuPage() {
     const { t, direction, language } = useLanguage();
 
     const statusTranslations: Record<string, string> = {
+        needs_approval: t("needs_approval_client") || "Pending Approval",
         pending: "قيد الانتظار",
         preparing: "قيد التحضير",
         ready: "جاهز",
@@ -82,6 +83,7 @@ export default function CustomerMenuPage() {
             return statusTranslations[lower];
         }
         const englishLabels: Record<string, string> = {
+            needs_approval: t("needs_approval_client") || 'Pending Approval',
             pending: 'Order Placed',
             preparing: 'Preparing',
             ready: 'Ready',
