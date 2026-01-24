@@ -8,10 +8,13 @@ import { useState, useEffect, useRef } from "react";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 import clsx from "clsx";
 
+import { useLanguage } from "@/contexts/LanguageContext";
+
 export default function WaiterPage() {
     // Hardcoded slug for demo
     const restaurantSlug = "burger-bistro";
     const restaurant = useQuery(api.restaurants.getRestaurantBySlug, { slug: restaurantSlug }) as any;
+    const { t } = useLanguage();
 
     const waiterCalls = useQuery(api.waiterCalls.getWaiterCallsByRestaurant,
         restaurant ? { restaurantId: restaurant._id, status: "pending" } : "skip"
@@ -25,14 +28,21 @@ export default function WaiterPage() {
         restaurant ? { restaurantId: restaurant._id } : "skip"
     ) as any;
 
+    const approvalOrders = useQuery(api.orders.getOrdersByRestaurant,
+        restaurant ? { restaurantId: restaurant._id, status: "needs_approval" } : "skip"
+    ) as any;
+
     const resolveCall = useMutation(api.waiterCalls.resolveWaiterCall);
     const updateOrderStatus = useMutation(api.orders.updateOrderStatus);
     const updateTableStatus = useMutation(api.tables.updateTableStatus);
+    const approveOrder = useMutation(api.approvals.approveOrder);
+    const rejectOrder = useMutation(api.approvals.rejectOrder);
 
     // Audio Logic
     const [audioEnabled, setAudioEnabled] = useState(false);
     const playSound = useNotificationSound("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"); // Using same alert for now, or could use a chime
     const prevCallCount = useRef(0);
+    const prevApprovalCount = useRef(0);
 
     useEffect(() => {
         if (waiterCalls) {
@@ -42,9 +52,17 @@ export default function WaiterPage() {
             }
             prevCallCount.current = currentCallCount;
         }
-    }, [waiterCalls, audioEnabled, playSound]);
 
-    if (!restaurant || !waiterCalls || !readyOrders || !tables) {
+        if (approvalOrders) {
+            const currentApprovalCount = approvalOrders.length;
+            if (currentApprovalCount > prevApprovalCount.current && audioEnabled) {
+                playSound();
+            }
+            prevApprovalCount.current = currentApprovalCount;
+        }
+    }, [waiterCalls, approvalOrders, audioEnabled, playSound]);
+
+    if (!restaurant || !waiterCalls || !readyOrders || !tables || !approvalOrders) {
         return <div className="p-8 text-center">Loading Waiter Dashboard...</div>;
     }
 
@@ -97,7 +115,63 @@ export default function WaiterPage() {
             </header>
 
             <main className="p-4 space-y-8">
-                {/* 1. SERVICE CALLS (High Priority) */}
+                {/* 1. PENDING APPROVALS (Highest Priority) */}
+                {approvalOrders.length > 0 && (
+                    <section>
+                        <h2 className="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-3 flex items-center gap-2 animate-pulse">
+                            <Bell className="w-4 h-4" />
+                            {t("needs_approval")} ({approvalOrders.length})
+                        </h2>
+
+                        <div className="space-y-3">
+                            {approvalOrders.map((order: any) => (
+                                <div key={order._id} className="bg-white border-l-4 border-indigo-500 p-4 rounded-r-xl shadow-lg ring-1 ring-indigo-100">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div className="text-2xl font-bold text-gray-900">{t("table_no")} {order.table?.number}</div>
+                                        <span className="bg-indigo-100 text-indigo-800 text-xs font-bold px-2 py-1 rounded-full">
+                                            #{order._id.slice(-4)}
+                                        </span>
+                                    </div>
+                                    <div className="space-y-1 mb-4 border-b border-gray-100 pb-3">
+                                        {order.items.map((item: any, idx: number) => (
+                                            <div key={idx} className="text-gray-700 flex gap-2 text-sm">
+                                                <span className="font-bold">{item.quantity}x</span>
+                                                <span>{item.menuItem?.name}</span>
+                                                {item.modifiers && item.modifiers.length > 0 && (
+                                                    <span className="text-xs text-gray-500 ml-1">
+                                                        ({item.modifiers.map((m: any) => `+${m.name} (x${m.quantity})`).join(", ")})
+                                                    </span>
+                                                )}
+                                                {item.notes && (
+                                                    <span className="text-xs text-red-500 italic block w-full mt-1">
+                                                        "{item.notes}"
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ))}
+                                        <div className="font-bold text-gray-900 mt-2">{t("total")}: {restaurant.currency} {order.totalAmount.toFixed(2)}</div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button
+                                            onClick={() => rejectOrder({ orderId: order._id })}
+                                            className="bg-red-50 text-red-700 hover:bg-red-100 py-2 rounded-lg font-bold text-sm transition-colors border border-red-200"
+                                        >
+                                            {t("reject")}
+                                        </button>
+                                        <button
+                                            onClick={() => approveOrder({ orderId: order._id })}
+                                            className="bg-indigo-600 text-white hover:bg-indigo-700 py-2 rounded-lg font-bold text-sm transition-colors shadow-sm"
+                                        >
+                                            {t("approve")}
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {/* 2. SERVICE CALLS */}
                 <section>
                     <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
                         <Bell className="w-4 h-4" />
@@ -132,7 +206,7 @@ export default function WaiterPage() {
                     </div>
                 </section>
 
-                {/* 2. READY TO SERVE */}
+                {/* 3. READY TO SERVE */}
                 <section>
                     <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
                         <Utensils className="w-4 h-4" />
@@ -159,9 +233,16 @@ export default function WaiterPage() {
                                 </div>
                                 <div className="space-y-1 mb-3">
                                     {order.items.map((item: any, idx: number) => (
-                                        <div key={idx} className="text-green-800 flex gap-2">
-                                            <span className="font-bold">{item.quantity}x</span>
-                                            <span>{item.menuItem?.name}</span>
+                                        <div key={idx} className="flex flex-col mb-1">
+                                            <div className="text-green-800 flex gap-2">
+                                                <span className="font-bold">{item.quantity}x</span>
+                                                <span>{item.menuItem?.name}</span>
+                                            </div>
+                                            {item.modifiers && item.modifiers.length > 0 && (
+                                                <span className="text-xs text-green-600 ml-6">
+                                                    {item.modifiers.map((m: any) => `+${m.name} (x${m.quantity})`).join(", ")}
+                                                </span>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -173,7 +254,7 @@ export default function WaiterPage() {
                     </div>
                 </section>
 
-                {/* 3. CLEAR TABLES */}
+                {/* 4. CLEAR TABLES */}
                 <section>
                     <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
                         <Trash2 className="w-4 h-4" />

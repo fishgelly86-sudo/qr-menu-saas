@@ -145,6 +145,14 @@ export const createOrder = mutation({
       .withIndex("by_table_and_status", q => q.eq("tableId", table._id).eq("status", "pending"))
       .first();
 
+    // CHECK RESTAURANT SETTINGS for "Manager Verification Flow"
+    const restaurant = await ctx.db.get(args.restaurantId);
+    if (!restaurant) {
+      throw new Error("Restaurant not found.");
+    }
+
+    const initialStatus = restaurant.settings?.requireOrderApproval ? "needs_approval" : "pending";
+
     let orderId;
     let finalOrderTotal = 0;
 
@@ -152,14 +160,19 @@ export const createOrder = mutation({
       orderId = existingActiveOrder._id;
       finalOrderTotal = existingActiveOrder.totalAmount + serverCalculatedTotal;
 
-      // Update existing order total
+      // Update existing order total. 
+      // NOTE: If order was "needs_approval" and user adds more, it stays "needs_approval".
+      // If it was "pending" and we add more, we might want to revert to "needs_approval"? 
+      // For now, let's keep it simple: if existing order exists, we respect its current status 
+      // unless we want to re-trigger approval. 
+      // Current decision: append to existing order, status remains same.
       await ctx.db.patch(orderId, { totalAmount: finalOrderTotal });
     } else {
       finalOrderTotal = serverCalculatedTotal;
       orderId = await ctx.db.insert("orders", {
         restaurantId: args.restaurantId,
         tableId: table._id,
-        status: "pending",
+        status: initialStatus,
         totalAmount: finalOrderTotal,
         customerId: args.customerId,
         idempotencyKey: args.idempotencyKey,
@@ -194,7 +207,8 @@ export const getOrdersByRestaurant = query({
       v.literal("ready"),
       v.literal("served"),
       v.literal("paid"),
-      v.literal("cancelled")
+      v.literal("cancelled"),
+      v.literal("needs_approval")
     )),
     minDate: v.optional(v.number()),
   },
@@ -289,7 +303,8 @@ export const updateOrderStatus = mutation({
       v.literal("ready"),
       v.literal("served"),
       v.literal("paid"),
-      v.literal("cancelled")
+      v.literal("cancelled"),
+      v.literal("needs_approval")
     ),
   },
   handler: async (ctx, args) => {
@@ -323,7 +338,8 @@ export const updateBatchOrderStatus = mutation({
       v.literal("ready"),
       v.literal("served"),
       v.literal("paid"),
-      v.literal("cancelled")
+      v.literal("cancelled"),
+      v.literal("needs_approval")
     ),
   },
   handler: async (ctx, args) => {

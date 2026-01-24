@@ -12,6 +12,7 @@ const applicationTables = {
     settings: v.object({
       allowSplitBill: v.boolean(),
       autoUpsell: v.boolean(),
+      requireOrderApproval: v.optional(v.boolean()),
     }),
     // Subscription fields (optional for backward compatibility with existing data)
     subscriptionStatus: v.optional(v.union(
@@ -104,7 +105,8 @@ const applicationTables = {
       v.literal("ready"),
       v.literal("served"),
       v.literal("paid"),
-      v.literal("cancelled")
+      v.literal("cancelled"),
+      v.literal("needs_approval")
     ),
     totalAmount: v.number(),
     customerId: v.optional(v.id("customers")),

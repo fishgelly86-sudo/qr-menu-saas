@@ -253,10 +253,36 @@ export const updateRestaurant = mutation({
   args: {
     id: v.id("restaurants"),
     isAcceptingOrders: v.optional(v.boolean()),
+    settings: v.optional(v.object({
+      requireOrderApproval: v.boolean(),
+      // Add other settings here if we want to update them all at once, 
+      // or just partial updates. 
+      // For now, let's just support merging settings or specific field.
+      // Actually, to avoid overwriting other settings, we should probably patch carefully.
+    })),
   },
   handler: async (ctx, args) => {
     await requireRestaurantManager(ctx, args.id);
-    const { id, ...fields } = args;
-    await ctx.db.patch(id, fields);
+
+    const { id, settings, ...topLevelFields } = args;
+
+    // Patch top-level fields
+    if (Object.keys(topLevelFields).length > 0) {
+      await ctx.db.patch(id, topLevelFields);
+    }
+
+    // Patch settings if provided
+    if (settings) {
+      const restaurant = await ctx.db.get(id);
+      if (restaurant) {
+        const currentSettings = restaurant.settings;
+        await ctx.db.patch(id, {
+          settings: {
+            ...currentSettings,
+            ...settings
+          }
+        });
+      }
+    }
   },
 });

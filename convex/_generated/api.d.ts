@@ -11,6 +11,7 @@
 import type * as accessControl from "../accessControl.js";
 import type * as adminAuth from "../adminAuth.js";
 import type * as analytics from "../analytics.js";
+import type * as approvals from "../approvals.js";
 import type * as auth from "../auth.js";
 import type * as categories from "../categories.js";
 import type * as crons from "../crons.js";
@@ -55,6 +56,7 @@ declare const fullApi: ApiFromModules<{
   accessControl: typeof accessControl;
   adminAuth: typeof adminAuth;
   analytics: typeof analytics;
+  approvals: typeof approvals;
   auth: typeof auth;
   categories: typeof categories;
   crons: typeof crons;

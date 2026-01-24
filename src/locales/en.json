@@ -196,5 +196,14 @@
     "vs_previous_day": "vs Previous Day",
     "hourly_breakdown": "Hourly Breakdown",
     "performance_indicators": "Performance Indicators",
-    "view_full_report": "View Full Report"
+    "view_full_report": "View Full Report",
+    "settings": "Settings",
+    "needs_approval": "Needs Approval",
+    "reject": "Reject",
+    "approve": "Approve",
+    "store_settings": "Store Settings",
+    "order_verification": "Order Verification",
+    "order_verification_desc": "Control how orders are processed and verified.",
+    "require_manager_approval": "Require Manager Approval",
+    "require_manager_approval_desc": "If enabled, new orders will require manual approval from the Waiter Dashboard before being sent to the kitchen."
 }

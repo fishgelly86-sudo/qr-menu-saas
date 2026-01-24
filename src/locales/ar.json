@@ -196,5 +196,14 @@
     "vs_previous_day": "مقابل اليوم السابق",
     "hourly_breakdown": "توزيع الساعات",
     "performance_indicators": "مؤشرات الأداء",
-    "view_full_report": "عرض التقرير الكامل"
+    "view_full_report": "عرض التقرير الكامل",
+    "settings": "الإعدادات",
+    "needs_approval": "يحتاج موافقة",
+    "reject": "رفض",
+    "approve": "موافقة",
+    "store_settings": "إعدادات المتجر",
+    "order_verification": "التحقق من الطلبات",
+    "order_verification_desc": "التحكم في كيفية معالجة الطلبات والتحقق منها.",
+    "require_manager_approval": "تفعيل موافقة المدير",
+    "require_manager_approval_desc": "عند التفعيل، ستحتاج الطلبات الجديدة إلى موافقة يدوية من لوحة النادل قبل إرسالها إلى المطبخ."
 }

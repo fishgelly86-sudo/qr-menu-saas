@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Menu, UtensilsCrossed, BarChart3, ExternalLink, X } from "lucide-react";
+import { LayoutDashboard, Menu, UtensilsCrossed, BarChart3, ExternalLink, X, Settings } from "lucide-react";
 import clsx from "clsx";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery, useMutation, useConvexAuth } from "convex/react";
@@ -38,6 +38,7 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
         { name: t("menu_management"), href: "/admin/manager/menu", icon: Menu },
         { name: t("tables_management"), href: "/admin/manager/tables", icon: UtensilsCrossed },
         { name: t("analytics"), href: "/admin/manager/analytics", icon: BarChart3 },
+        { name: t("settings"), href: "/admin/manager/settings", icon: Settings },
     ];
 
     const isRtl = direction === "rtl";
