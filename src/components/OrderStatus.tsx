@@ -1,4 +1,4 @@
-import { Bell, BellRing, ChefHat, Clock, Utensils, AlertTriangle } from "lucide-react";
+import { Bell, BellRing, ChefHat, Clock, Utensils, Hourglass } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
@@ -18,10 +18,22 @@ export function OrderStatus({ orders, tableNumber, restaurantId, onStartNewOrder
     const [showWaiterDialog, setShowWaiterDialog] = useState(false);
     const callWaiter = useMutation(api.waiterCalls.callWaiter);
 
-    // Use the most recent order for status tracking
-    const latestOrder = orders && orders.length > 0 ? orders[orders.length - 1] : null;
+    // Separate active processed orders from those waiting for approval
+    const approvalOrders = orders.filter(o => o.status === 'needs_approval');
+    // Active orders are those that are NOT needs_approval and NOT cancelled (unless that's the only thing we have)
+    // We want the stepper to show the progress of accepted food.
+    const activeOrders = orders.filter(o => o.status !== 'needs_approval' && o.status !== 'cancelled');
 
-    if (!latestOrder) {
+    // Determine the "Main" status to display on the stepper.
+    // Usage:
+    // 1. If we have active orders (cooking/ready), show the latest active order status.
+    // 2. If we ONLY have approval orders, show "Needs Approval".
+    // 3. Fallback to latest available.
+    const mainDisplayOrder = activeOrders.length > 0
+        ? activeOrders[activeOrders.length - 1]
+        : (approvalOrders.length > 0 ? approvalOrders[approvalOrders.length - 1] : orders[orders.length - 1]);
+
+    if (!mainDisplayOrder) {
         return <div className="text-white">No active orders</div>;
     }
 
@@ -55,15 +67,15 @@ export function OrderStatus({ orders, tableNumber, restaurantId, onStartNewOrder
     };
 
     const steps = [
-        { status: "needs_approval", label: t("needs_approval_client"), icon: AlertTriangle },
+        { status: "needs_approval", label: t("needs_approval_client"), icon: Hourglass },
         { status: "pending", label: t("order_sent") || "Order Placed", icon: Clock },
         { status: "preparing", label: t("chef_is_cooking") || "Preparing", icon: ChefHat },
         { status: "ready", label: t("ready_to_serve") || "Ready!", icon: Bell },
         { status: "served", label: t("bon_appetit") || "Bon Appétit", icon: Utensils },
     ];
 
-    const currentStepIndex = steps.findIndex(s => s.status === latestOrder.status);
-    const activeIndex = latestOrder.status === 'paid' ? 3 : (currentStepIndex === -1 ? 0 : currentStepIndex);
+    const currentStepIndex = steps.findIndex(s => s.status === mainDisplayOrder.status);
+    const activeIndex = mainDisplayOrder.status === 'paid' ? 3 : (currentStepIndex === -1 ? 0 : currentStepIndex);
 
     const handleCallWaiter = async (type: "bill" | "help") => {
         if (!restaurantId || !tableNumber) return;
@@ -101,12 +113,30 @@ export function OrderStatus({ orders, tableNumber, restaurantId, onStartNewOrder
                     <h1 className="text-3xl font-serif text-[#D4AF37] font-bold">
                         {steps[activeIndex].label}
                     </h1>
-                    {latestOrder.status === 'needs_approval' && (
+
+                    {/* New "Waiting for Approval" Banner */}
+                    {approvalOrders.length > 0 && activeOrders.length > 0 && (
+                        <div className="bg-[#D4AF37]/20 border border-[#D4AF37] rounded-lg p-3 mt-4 animate-in fade-in slide-in-from-bottom-4">
+                            <div className="flex items-center gap-3 text-[#D4AF37]">
+                                <Hourglass className="w-5 h-5 animate-pulse" />
+                                <div className="text-left">
+                                    <p className="font-bold text-sm">
+                                        {(t as any)("items_pending_approval") || "New Items Pending Approval"}
+                                    </p>
+                                    <p className="text-xs opacity-80">
+                                        {(t as any)("waiter_will_confirm") || "Ideally a waiter will confirm these shortly."}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {mainDisplayOrder.status === 'needs_approval' && (
                         <p className="text-red-400 font-medium text-sm animate-pulse">
                             {t("call_waiter_hint")}
                         </p>
                     )}
-                    <p className="text-[#f5f3f0]/80 font-light">
+                    <p className="text-[#f5f3f0]/80 font-light mt-2">
                         {t("table_no")} {tableNumber}
                     </p>
                 </div>

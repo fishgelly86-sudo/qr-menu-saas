@@ -632,3 +632,161 @@ export const archiveAndClearTable = mutation({
     await ctx.db.patch(args.tableId, { status: "free" });
   },
 });
+
+export const updateOrderItems = mutation({
+  args: {
+    orderId: v.id("orders"),
+    items: v.array(v.object({
+      menuItemId: v.string(),
+      quantity: v.number(),
+      notes: v.optional(v.string()),
+      modifiers: v.optional(v.array(v.object({
+        modifierId: v.string(),
+        quantity: v.number()
+      })))
+    })),
+  },
+  handler: async (ctx, args) => {
+    const order = await ctx.db.get(args.orderId);
+    if (!order) {
+      throw new Error("Order not found");
+    }
+
+    await requireRestaurantManager(ctx, order.restaurantId);
+
+    // Only allow editing orders that haven't been prepared yet
+    if (order.status !== "needs_approval" && order.status !== "pending") {
+      throw new Error("Cannot edit orders that are already being prepared");
+    }
+
+    // Validate and calculate new total
+    let newTotal = 0;
+    const itemsToInsert = [];
+
+    for (const item of args.items) {
+      if (item.quantity < 1 || item.quantity > 99) {
+        throw new Error("Invalid quantity (1-99).");
+      }
+
+      const dbItem = await ctx.db.get(item.menuItemId as any);
+      if (!dbItem || (dbItem as any).restaurantId !== order.restaurantId) {
+        throw new Error(`Item ${item.menuItemId} not found`);
+      }
+
+      const itemPrice = (dbItem as any).price;
+      let modifiersTotal = 0;
+      const modifiersToInsert = [];
+
+      if (item.modifiers) {
+        for (const mod of item.modifiers) {
+          const modifier: any = await ctx.db.get(mod.modifierId as any);
+          if (!modifier || modifier.restaurantId !== order.restaurantId) {
+            throw new Error(`Modifier ${mod.modifierId} not found`);
+          }
+          const modPrice = modifier.price;
+          modifiersTotal += modPrice * mod.quantity;
+
+          modifiersToInsert.push({
+            modifierId: mod.modifierId,
+            quantity: mod.quantity,
+            price: modPrice,
+          });
+        }
+      }
+
+      newTotal += (itemPrice * item.quantity) + modifiersTotal;
+
+      itemsToInsert.push({
+        menuItemId: item.menuItemId,
+        quantity: item.quantity,
+        notes: item.notes,
+        modifiers: modifiersToInsert,
+        price: itemPrice,
+      });
+    }
+
+    // Delete existing order items
+    const existingItems = await ctx.db
+      .query("orderItems")
+      .withIndex("by_order", (q) => q.eq("orderId", args.orderId))
+      .collect();
+
+    for (const item of existingItems) {
+      await ctx.db.delete(item._id);
+    }
+
+    // Insert new items
+    const addedAt = Date.now();
+    for (const item of itemsToInsert) {
+      await ctx.db.insert("orderItems", {
+        orderId: args.orderId,
+        menuItemId: item.menuItemId,
+        quantity: item.quantity,
+        notes: item.notes,
+        modifiers: item.modifiers,
+        price: item.price,
+        addedAt,
+      });
+    }
+
+    // Update order total
+    await ctx.db.patch(args.orderId, { totalAmount: newTotal });
+
+    return args.orderId;
+  },
+});
+
+export const deleteOrderItem = mutation({
+  args: {
+    orderItemId: v.id("orderItems"),
+  },
+  handler: async (ctx, args) => {
+    const orderItem = await ctx.db.get(args.orderItemId);
+    if (!orderItem) {
+      throw new Error("Order item not found");
+    }
+
+    const order = await ctx.db.get(orderItem.orderId);
+    if (!order) {
+      throw new Error("Order not found");
+    }
+
+    await requireRestaurantManager(ctx, order.restaurantId);
+
+    // Only allow deleting items from orders that haven't been prepared yet
+    if (order.status !== "needs_approval" && order.status !== "pending") {
+      throw new Error("Cannot edit orders that are already being prepared");
+    }
+
+    // Calculate item total to subtract from order
+    const menuItem = await ctx.db.get(orderItem.menuItemId as any) as any;
+    const itemPrice = orderItem.price ?? menuItem?.price ?? 0;
+    let itemTotal = itemPrice * orderItem.quantity;
+
+    if (orderItem.modifiers) {
+      for (const mod of orderItem.modifiers) {
+        itemTotal += (mod.price ?? 0) * mod.quantity;
+      }
+    }
+
+    // Delete the item
+    await ctx.db.delete(args.orderItemId);
+
+    // Update order total
+    const newTotal = Math.max(0, order.totalAmount - itemTotal);
+    await ctx.db.patch(order._id, { totalAmount: newTotal });
+
+    // Check if order has any items left
+    const remainingItems = await ctx.db
+      .query("orderItems")
+      .withIndex("by_order", (q) => q.eq("orderId", order._id))
+      .collect();
+
+    // If no items remain, cancel the order
+    if (remainingItems.length === 0) {
+      await ctx.db.patch(order._id, { status: "cancelled" });
+    }
+
+    return order._id;
+  },
+});

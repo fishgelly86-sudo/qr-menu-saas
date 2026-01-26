@@ -577,6 +577,18 @@ export default function CustomerMenuPage() {
         }
     };
 
+    const hasModifiers = (menuItemId: string) => {
+        if (!menu?.categories || !menu?.modifiers) return false;
+        for (const cat of menu.categories) {
+            const found = cat.items.find((i: any) => i._id === menuItemId);
+            if (found && found.relatedModifiers && found.relatedModifiers.length > 0) {
+                // Check if any of the related modifiers exist in the menu.modifiers list
+                return menu.modifiers.some((mod: any) => found.relatedModifiers.includes(mod._id));
+            }
+        }
+        return false;
+    };
+
     const handlePlaceOrder = async () => {
         if (!tableNumber || cart.length === 0 || !menu?.restaurant?._id) return;
 
@@ -1173,14 +1185,17 @@ export default function CustomerMenuPage() {
                                     >
                                         {t("remove")}
                                     </button>
-                                    <button
-                                        onClick={() => handleEditExtras(index)}
-                                        className="px-3 py-1 rounded-lg text-sm font-medium text-amber-600 border border-amber-200 hover:bg-amber-50 hover:border-amber-300 transition-colors"
-                                    >
-                                        {item.modifiers && item.modifiers.length > 0
-                                            ? t("edit_extras") || "Edit Extras"
-                                            : t("add_extras") || "Add Extras"}
-                                    </button>
+                                    {hasModifiers(item.menuItemId) && (
+                                        <button
+                                            onClick={() => handleEditExtras(index)}
+                                            className="px-3 py-1 rounded-lg text-sm font-medium text-amber-600 border border-amber-200 hover:bg-amber-50 hover:border-amber-300 transition-colors"
+                                        >
+                                            {item.modifiers && item.modifiers.length > 0
+                                                ? t("edit_extras") || "Edit Extras"
+                                                : t("add_extras") || "Add Extras"}
+                                        </button>
+                                    )}
+
                                 </div>
                             </div>
                         </div>
