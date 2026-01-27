@@ -2,7 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { useWaiter } from "../layout";
+import { useWaiter } from "@/hooks/useWaiter";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function WaiterDashboard() {
