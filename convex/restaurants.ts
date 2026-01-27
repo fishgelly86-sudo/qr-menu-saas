@@ -152,6 +152,13 @@ export const getRestaurantByOwner = query({
   },
 });
 
+export const getRestaurant = query({
+  args: { id: v.id("restaurants") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
+  },
+});
+
 export const createRestaurant = mutation({
   args: {
     name: v.string(),
