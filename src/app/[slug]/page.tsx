@@ -159,6 +159,7 @@ export default function CustomerMenuPage() {
     const callWaiter = useMutation(api.waiterCalls.callWaiter);
     const createSession = useMutation(api.sessions.createTableSession);
     const refreshSession = useMutation(api.sessions.refreshSession);
+    const createVirtualTableMutation = useMutation(api.tables.createVirtualTable);
 
     // Safe Mutation for creating orders (Offline Support)
     const { mutate: createOrderSafe, isPending: isOrderPending } = useSafeMutation(api.orders.createOrder, "orders:createOrder");
@@ -214,6 +215,37 @@ export default function CustomerMenuPage() {
             setSessionError(error.message);
         }
     };
+
+    // TAKAWAY MODE HANDLER
+    const handleTakeawayMode = async () => {
+        if (!menu?.restaurant?._id) return;
+
+        try {
+            const result = await createVirtualTableMutation({
+                restaurantId: menu.restaurant._id
+            });
+
+            if (result && result.tableNumber) {
+                // Set table number and update URL
+                setTableNumber(result.tableNumber);
+                setShowTableSelector(false);
+                router.push(`/${slug}?table=${result.tableNumber}`);
+
+                // Init session for this new virtual table
+                handleSessionInit(result.tableNumber);
+            }
+        } catch (error) {
+            showToast("Failed to start takeaway session", "error");
+        }
+    };
+
+    // Auto-detect takeaway mode from URL
+    useEffect(() => {
+        const mode = searchParams.get("mode");
+        if (mode === "takeaway" && !tableParam && menu?.restaurant?._id) {
+            handleTakeawayMode();
+        }
+    }, [searchParams, menu?.restaurant?._id]);
 
     // Session expiration is now only checked when placing orders
     // This prevents the error UI from appearing during normal browsing or language changes
@@ -1278,6 +1310,32 @@ export default function CustomerMenuPage() {
                         <Star className="w-8 h-8 text-[#D4AF37]" />
                     </div>
                     <p className="text-gray-600 font-serif">{t("enter_table_number")}</p>
+                    <div className="space-y-2">
+                        <p className="text-sm text-gray-500 text-center mb-4">
+                            {t("table_instruction") || "Please enter your table number or select Takeaway."}
+                        </p>
+
+                        {/* Takeaway Button */}
+                        <Button
+                            onClick={handleTakeawayMode}
+                            className="w-full bg-[#1a1a2e] text-[#D4AF37] border border-[#D4AF37] hover:bg-[#1a1a2e]/90 mb-4 py-6 text-lg font-serif"
+                        >
+                            <span className="mr-2">🛍️</span>
+                            {t("takeaway_order") || "Takeaway Order"}
+                        </Button>
+
+                        <div className="relative">
+                            <div className="absolute inset-0 flex items-center">
+                                <span className="w-full border-t" />
+                            </div>
+                            <div className="relative flex justify-center text-xs uppercase">
+                                <span className="bg-white px-2 text-gray-500">
+                                    {t("or_enter_table") || "Or enter table number"}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
                     <Input
                         type="text"
                         value={tableInput}

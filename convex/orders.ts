@@ -233,6 +233,22 @@ export const getOrdersByRestaurant = query({
         .collect();
     }
 
+    // Filter by assigned tables if applicable
+    const userId = await ctx.auth.getUserIdentity();
+    if (userId) {
+      const staffMember = await ctx.db
+        .query("staff")
+        .withIndex("by_user", (q) => q.eq("userId", userId.subject))
+        .filter((q) => q.eq(q.field("restaurantId"), args.restaurantId))
+        .first();
+
+      if (staffMember && staffMember.role === "waiter" && staffMember.assignedTables && staffMember.assignedTables.length > 0) {
+        orders = orders.filter((order) =>
+          staffMember.assignedTables!.includes(order.tableId)
+        );
+      }
+    }
+
     // Filter by minDate if provided
     if (args.minDate) {
       orders = orders.filter(o => o._creationTime >= args.minDate!);

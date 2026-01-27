@@ -45,6 +45,7 @@ import type * as updateBurgerBistroCategories from "../updateBurgerBistroCategor
 import type * as updateCurrency from "../updateCurrency.js";
 import type * as utils from "../utils.js";
 import type * as waiterCalls from "../waiterCalls.js";
+import type * as waiters from "../waiters.js";
 
 import type {
   ApiFromModules,
@@ -90,6 +91,7 @@ declare const fullApi: ApiFromModules<{
   updateCurrency: typeof updateCurrency;
   utils: typeof utils;
   waiterCalls: typeof waiterCalls;
+  waiters: typeof waiters;
 }>;
 
 /**

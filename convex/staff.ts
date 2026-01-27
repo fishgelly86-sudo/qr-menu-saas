@@ -232,6 +232,47 @@ export const revokeAccess = mutation({
 });
 
 /**
+ * Update assigned tables for a staff member
+ */
+export const updateStaffAssignments = mutation({
+    args: {
+        staffId: v.id("staff"),
+        tableIds: v.array(v.id("tables")),
+    },
+    handler: async (ctx, args) => {
+        const userId = await getUserId(ctx);
+        const staffMember = await ctx.db.get(args.staffId);
+
+        if (!staffMember) {
+            throw new Error("Staff member not found");
+        }
+
+        const restaurant = await ctx.db.get(staffMember.restaurantId);
+
+        if (!restaurant) {
+            throw new Error("Restaurant not found");
+        }
+
+        // Only owner or manager can assign tables
+        if (restaurant.ownerId !== userId) {
+            // Check if caller is manager
+            const callerStaff = await ctx.db
+                .query("staff")
+                .withIndex("by_user", (q) => q.eq("userId", userId))
+                .filter((q) => q.eq(q.field("restaurantId"), restaurant._id))
+                .first();
+
+            if (!callerStaff || callerStaff.role !== "manager") {
+                throw new Error("Unauthorized");
+            }
+        }
+
+        await ctx.db.patch(args.staffId, { assignedTables: args.tableIds });
+        return { success: true };
+    },
+});
+
+/**
  * Get current user's role in a restaurant
  */
 export const getMyRole = query({

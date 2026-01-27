@@ -193,6 +193,7 @@ export default function KitchenPage() {
         // Collect IDs of orders that need updating
         let targetStatus: "preparing" | "ready" | "served" | "paid" = "preparing";
         let ordersToUpdate: any[] = [];
+        let confirmMessage = "";
 
         if (action === "start_cooking") {
             targetStatus = "preparing";
@@ -201,8 +202,13 @@ export default function KitchenPage() {
             targetStatus = "ready";
             ordersToUpdate = group.orders.filter((o: any) => o.status === "preparing");
         } else if (action === "serve") {
+            confirmMessage = "Are you sure you want to clear this table? This will remove it from the screen.";
             targetStatus = "served"; // Or paid, depending on workflow, usually KDS does Served
             ordersToUpdate = group.orders.filter((o: any) => o.status === "ready");
+        }
+
+        if (confirmMessage && !window.confirm(confirmMessage)) {
+            return;
         }
 
         const ids = ordersToUpdate.map(o => o._id);
@@ -248,16 +254,28 @@ export default function KitchenPage() {
         // Find the "primary" timestamp (earliest)
         const startTime = group.orders[0]._creationTime;
 
+        // Detect Takeaway
+        const isTakeaway = group.table?.isVirtual || group.table?.number?.toString().toUpperCase().startsWith("TAKEAWAY");
+
         return (
             <div
                 className={clsx(
-                    "bg-gray-800 rounded-lg p-4 mb-4 transition-all hover:bg-gray-700 border-2 relative group",
-                    isNew ? "border-red-500" : "border-gray-700"
+                    "rounded-lg p-4 mb-4 transition-all hover:bg-gray-700/80 border-2 relative group shadow-lg",
+                    isNew ? "border-red-500" : "border-gray-700",
+                    isTakeaway ? "bg-[#2c2014]" : "bg-gray-800"
                 )}
             >
                 <div className="flex justify-between items-start mb-2 border-b border-gray-700 pb-2">
                     <div>
-                        <span className="text-2xl font-bold text-gray-200">Table {group.table?.number}</span>
+                        <div className="flex items-center gap-2">
+                            {isTakeaway && <span className="text-xl">🛍️</span>}
+                            <span className={clsx("text-2xl font-bold", isTakeaway ? "text-amber-400" : "text-gray-200")}>
+                                {isTakeaway ? "TAKEAWAY" : `Table ${group.table?.number}`}
+                            </span>
+                        </div>
+                        {isTakeaway && group.table?.number && (
+                            <div className="text-xs text-amber-500/70 font-mono">#{group.table.number}</div>
+                        )}
                         <div className="text-xs text-gray-400">{group.orders.length} Tickets</div>
                     </div>
                     <span className="text-sm text-gray-400">{new Date(startTime).toLocaleTimeString()}</span>
@@ -285,6 +303,16 @@ export default function KitchenPage() {
                                     {item.notes && (
                                         <div className="mt-1 bg-yellow-900/30 text-yellow-300 p-1 rounded text-sm font-bold border border-yellow-600/30 inline-block">
                                             {item.notes}
+                                        </div>
+                                    )}
+                                    {/* Render Modifiers */}
+                                    {item.modifiers && item.modifiers.length > 0 && (
+                                        <div className="mt-1 pl-2 border-l-2 border-gray-600 space-y-0.5">
+                                            {item.modifiers.map((mod: any, mIdx: number) => (
+                                                <div key={mIdx} className="text-sm text-gray-400">
+                                                    + {mod.quantity > 1 ? `${mod.quantity}x ` : ""}{mod.name}
+                                                </div>
+                                            ))}
                                         </div>
                                     )}
                                 </div>

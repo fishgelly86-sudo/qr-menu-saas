@@ -4,10 +4,28 @@ import { v } from "convex/values";
 export const getTablesByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const tables = await ctx.db
       .query("tables")
       .withIndex("by_restaurant", (q) => q.eq("restaurantId", args.restaurantId))
       .collect();
+
+    // Filter by assigned tables if applicable
+    const userId = await ctx.auth.getUserIdentity();
+    if (userId) {
+      const staffMember = await ctx.db
+        .query("staff")
+        .withIndex("by_user", (q) => q.eq("userId", userId.subject))
+        .filter((q) => q.eq(q.field("restaurantId"), args.restaurantId))
+        .first();
+
+      if (staffMember && staffMember.role === "waiter" && staffMember.assignedTables && staffMember.assignedTables.length > 0) {
+        return tables.filter((table) =>
+          staffMember.assignedTables!.includes(table._id)
+        );
+      }
+    }
+
+    return tables;
   },
 });
 
@@ -24,6 +42,96 @@ export const getTableByNumber = query({
       )
       .unique();
   },
+});
+
+export const createVirtualTable = mutation({
+  args: {
+    restaurantId: v.id("restaurants"),
+  },
+  handler: async (ctx, args) => {
+    // Generate a unique random alphanumeric code for the virtual table
+    // Format: "T-[RANDOM]" e.g. "T-A7B2"
+    const randomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const tableNumber = `TAKEAWAY-${randomCode}`;
+
+    // Check collision (unlikely but good practice)
+    const existing = await ctx.db
+      .query("tables")
+      .withIndex("by_restaurant_and_number", (q) =>
+        q.eq("restaurantId", args.restaurantId).eq("number", tableNumber)
+      )
+      .unique();
+
+    if (existing) {
+      // Simple retry logic: just modify the code slightly or throw (client retries)
+      // For now, let's just append timestamp if collision
+      const timestamp = Date.now().toString().slice(-4);
+      const retryNumber = `TAKEAWAY-${randomCode}${timestamp}`;
+
+      const retryId = await ctx.db.insert("tables", {
+        restaurantId: args.restaurantId,
+        number: retryNumber,
+        status: "free", // Initially free, becomes occupied on order
+        isVirtual: true,
+      });
+
+      return { tableId: retryId, tableNumber: retryNumber };
+    }
+
+    const tableId = await ctx.db.insert("tables", {
+      restaurantId: args.restaurantId,
+      number: tableNumber,
+      status: "free",
+      isVirtual: true,
+    });
+
+    return { tableId, tableNumber };
+  },
+});
+
+// Import internal mutation for cron
+import { internalMutation } from "./_generated/server";
+
+export const cleanupVirtualTables = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    // 1. Find all virtual tables
+    // We don't have a direct index on isVirtual, so we might need to scan. 
+    // Optimization: Add index if this becomes slow. For now, scan is okay if table count is low-ish.
+    // OR: Filter by those created > 24h ago? We don't have creation time defaults in schema but we have _creationTime system field.
+
+    // Deleting tables older than 24 hours
+    const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+
+    const tables = await ctx.db.query("tables").collect();
+
+    const virtualTables = tables.filter(t => t.isVirtual === true);
+
+    let deletedCount = 0;
+    for (const table of virtualTables) {
+      if (table._creationTime < oneDayAgo) {
+        // Double check: Are there active orders?
+        const activeOrders = await ctx.db
+          .query("orders")
+          .withIndex("by_table_and_status", q => q.eq("tableId", table._id).eq("status", "pending"))
+          .first();
+
+        const preparingOrders = await ctx.db
+          .query("orders")
+          .withIndex("by_table_and_status", q => q.eq("tableId", table._id).eq("status", "preparing"))
+          .first();
+
+        // If no active orders, delete
+        if (!activeOrders && !preparingOrders) {
+          await ctx.db.delete(table._id);
+          deletedCount++;
+        }
+      }
+    }
+
+    console.log(`Cleaned up ${deletedCount} virtual tables.`);
+    return deletedCount;
+  }
 });
 
 export const createTable = mutation({

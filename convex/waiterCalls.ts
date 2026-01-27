@@ -67,6 +67,22 @@ export const getWaiterCallsByRestaurant = query({
         .collect();
     }
 
+    // Filter by assigned tables if applicable
+    const userId = await ctx.auth.getUserIdentity();
+    if (userId) {
+      const staffMember = await ctx.db
+        .query("staff")
+        .withIndex("by_user", (q) => q.eq("userId", userId.subject))
+        .filter((q) => q.eq(q.field("restaurantId"), args.restaurantId))
+        .first();
+
+      if (staffMember && staffMember.role === "waiter" && staffMember.assignedTables && staffMember.assignedTables.length > 0) {
+        calls = calls.filter((call) =>
+          staffMember.assignedTables!.includes(call.tableId)
+        );
+      }
+    }
+
     // Get table info for each call
     const callsWithTables = await Promise.all(
       calls.map(async (call) => {

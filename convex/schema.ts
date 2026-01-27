@@ -56,6 +56,7 @@ const applicationTables = {
     number: v.string(),
     qrCodeUrl: v.optional(v.string()),
     status: v.union(v.literal("free"), v.literal("occupied"), v.literal("payment_pending"), v.literal("dirty")),
+    isVirtual: v.optional(v.boolean()), // For Takeaway/Virtual tables
   }).index("by_restaurant", ["restaurantId"])
     .index("by_restaurant_and_number", ["restaurantId", "number"]),
 
@@ -205,9 +206,18 @@ const applicationTables = {
     isActive: v.boolean(),
     email: v.string(),
     name: v.optional(v.string()),
+    assignedTables: v.optional(v.array(v.id("tables"))), // Optional: if empty/null, waiter sees all
   }).index("by_user", ["userId"])
     .index("by_restaurant", ["restaurantId"])
     .index("by_email", ["email"]),
+
+  waiters: defineTable({
+    restaurantId: v.id("restaurants"),
+    name: v.string(),
+    password: v.string(),
+    assignedTables: v.optional(v.array(v.id("tables"))), // If empty/null, has access to all tables
+    isDefault: v.optional(v.boolean()),
+  }).index("by_restaurant", ["restaurantId"]),
 
   // Security Tables
   rate_limits: defineTable({

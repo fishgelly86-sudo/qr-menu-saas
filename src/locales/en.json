@@ -241,5 +241,21 @@
     "add_item_title": "Add Item",
     "extras_label": "Extras:",
     "note_label": "Note:",
-    "add_special_instructions": "Add special instructions..."
+    "add_special_instructions": "Add special instructions...",
+    "takeaway_order": "Takeaway Order",
+    "table_instruction": "Please enter your table number or select Takeaway.",
+    "or_enter_table": "Or enter table number",
+    "add_waiter_title": "Add New Waiter",
+    "all_tables_option": "All Tables",
+    "assigned_tables_header": "Assigned Tables",
+    "default_badge": "Default",
+    "edit_assign_btn": "Edit / Assign",
+    "no_waiters_msg": "No waiters found. Create one to get started.",
+    "password_label": "Password",
+    "assign_tables_label": "Assign Tables (Optional)",
+    "assign_tables_hint": "Leave empty to grant access to ALL tables.",
+    "create_waiter_btn": "Create Waiter",
+    "edit_waiter_title": "Edit Waiter: {name}",
+    "manage_waiters_desc": "Manage access for waiters.",
+    "waiter_login_email": "Waiter Login Email:"
 }
