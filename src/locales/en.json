@@ -257,5 +257,12 @@
     "create_waiter_btn": "Create Waiter",
     "edit_waiter_title": "Edit Waiter: {name}",
     "manage_waiters_desc": "Manage access for waiters.",
-    "waiter_login_email": "Waiter Login Email:"
+    "waiter_login_email": "Waiter Login Email:",
+    "waiter_login_page_title": "Waiter Login",
+    "waiter_login_page_desc": "Enter the restaurant email and your assigned password",
+    "restaurant_email_placeholder": "Restaurant Email",
+    "waiter_password_placeholder": "Waiter Password",
+    "sign_in": "Sign in",
+    "signing_in": "Signing in...",
+    "login_failed": "Login failed"
 }

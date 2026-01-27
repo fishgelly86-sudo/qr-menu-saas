@@ -257,5 +257,12 @@
     "create_waiter_btn": "إنشاء نادل",
     "edit_waiter_title": "تعديل النادل: {name}",
     "manage_waiters_desc": "إدارة الوصول للنوادل.",
-    "waiter_login_email": "البريد الإلكتروني لتسجيل دخول النادل:"
+    "waiter_login_email": "البريد الإلكتروني لتسجيل دخول النادل:",
+    "waiter_login_page_title": "تسجيل دخول النادل",
+    "waiter_login_page_desc": "أدخل بريد المطعم وكلمة المرور الخاصة بك",
+    "restaurant_email_placeholder": "بريد المطعم",
+    "waiter_password_placeholder": "كلمة مرور النادل",
+    "sign_in": "تسجيل الدخول",
+    "signing_in": "جاري تسجيل الدخول...",
+    "login_failed": "فشل تسجيل الدخول"
 }
