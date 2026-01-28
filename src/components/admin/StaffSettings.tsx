@@ -30,11 +30,13 @@ export default function StaffSettings() {
     const [newWaiterName, setNewWaiterName] = useState("");
     const [newWaiterPassword, setNewWaiterPassword] = useState("");
     const [newWaiterTables, setNewWaiterTables] = useState<string[]>([]);
+    const [newWaiterHandlesTakeaway, setNewWaiterHandlesTakeaway] = useState(false);
     const [isCreatingWaiter, setIsCreatingWaiter] = useState(false);
 
     // Assignment States (for editing existing waiters)
     const [editingAssignment, setEditingAssignment] = useState<any>(null);
     const [selectedTables, setSelectedTables] = useState<string[]>([]);
+    const [handlesTakeaway, setHandlesTakeaway] = useState(false);
     const [isSavingAssignment, setIsSavingAssignment] = useState(false);
 
     // Queries & Mutations
@@ -64,11 +66,13 @@ export default function StaffSettings() {
                 name: newWaiterName,
                 password: newWaiterPassword,
                 assignedTables: newWaiterTables.length > 0 ? (newWaiterTables as any) : undefined,
+                handlesTakeaway: newWaiterHandlesTakeaway,
             });
             setIsAddModalOpen(false);
             setNewWaiterName("");
             setNewWaiterPassword("");
             setNewWaiterTables([]);
+            setNewWaiterHandlesTakeaway(false);
         } catch (error: any) {
             alert(error.message);
         } finally {
@@ -88,6 +92,7 @@ export default function StaffSettings() {
     const handleOpenAssignment = (waiter: any) => {
         setEditingAssignment(waiter);
         setSelectedTables(waiter.assignedTables || []);
+        setHandlesTakeaway(waiter.handlesTakeaway || false);
     };
 
     const handleSaveAssignment = async () => {
@@ -97,6 +102,7 @@ export default function StaffSettings() {
             await updateWaiter({
                 waiterId: editingAssignment._id,
                 assignedTables: selectedTables.length > 0 ? (selectedTables as any) : undefined,
+                handlesTakeaway: handlesTakeaway,
             });
             setEditingAssignment(null);
         } catch (error) {
@@ -172,6 +178,7 @@ export default function StaffSettings() {
                                     {!waiter.assignedTables || waiter.assignedTables.length === 0
                                         ? t("all_tables_option")
                                         : `${waiter.assignedTables.length} ${t("tables_management")}`}
+                                    {waiter.handlesTakeaway && <span className="ml-2 text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full">+ Takeaway</span>}
                                 </td>
                                 <td className="px-6 py-4">
                                     <div className="flex gap-2">
@@ -236,7 +243,7 @@ export default function StaffSettings() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">{t("assign_tables_label")}</label>
                         <p className="text-xs text-gray-500 mb-2">{t("assign_tables_hint")}</p>
                         <div className="max-h-[150px] overflow-y-auto grid grid-cols-3 gap-2 p-2 border rounded-lg bg-gray-50">
-                            {tables?.filter((t: any) => !t.isVirtual).map((table: any) => (
+                            {tables?.map((table: any) => (
                                 <button
                                     key={table._id}
                                     onClick={() => toggleNewWaiterTable(table._id)}
@@ -248,10 +255,30 @@ export default function StaffSettings() {
                                         }
                                     `}
                                 >
-                                    Table {table.number}
+                                    {table.isVirtual ? (
+                                        <div className="flex items-center justify-center gap-1">
+                                            <span>📦</span>
+                                            <span className="text-xs">{table.number}</span>
+                                        </div>
+                                    ) : (
+                                        `Table ${table.number}`
+                                    )}
                                 </button>
                             ))}
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={newWaiterHandlesTakeaway}
+                                onChange={(e) => setNewWaiterHandlesTakeaway(e.target.checked)}
+                                className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <span className="text-sm font-medium text-gray-700">Handles Takeaway Orders 📦</span>
+                        </label>
+                        <p className="text-xs text-gray-500 mt-1 ml-6">If checked, this waiter will see all takeaway orders</p>
                     </div>
 
                     <div className="flex gap-2 justify-end pt-4">
@@ -278,7 +305,7 @@ export default function StaffSettings() {
                     </p>
 
                     <div className="max-h-[300px] overflow-y-auto grid grid-cols-3 gap-2 p-2 border rounded-lg bg-gray-50">
-                        {tables?.filter((t: any) => !t.isVirtual).map((table: any) => (
+                        {tables?.map((table: any) => (
                             <button
                                 key={table._id}
                                 onClick={() => toggleTableSelection(table._id)}
@@ -290,9 +317,29 @@ export default function StaffSettings() {
                                     }
                                 `}
                             >
-                                Table {table.number}
+                                {table.isVirtual ? (
+                                    <div className="flex items-center justify-center gap-1">
+                                        <span>📦</span>
+                                        <span className="text-xs">{table.number}</span>
+                                    </div>
+                                ) : (
+                                    `Table ${table.number}`
+                                )}
                             </button>
                         ))}
+                    </div>
+
+                    <div className="mt-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={handlesTakeaway}
+                                onChange={(e) => setHandlesTakeaway(e.target.checked)}
+                                className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <span className="text-sm font-medium text-gray-700">Handles Takeaway Orders 📦</span>
+                        </label>
+                        <p className="text-xs text-gray-500 mt-1 ml-6">If checked, this waiter will see all takeaway orders</p>
                     </div>
 
                     <div className="flex gap-2 justify-end pt-4">

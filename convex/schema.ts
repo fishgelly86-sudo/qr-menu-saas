@@ -216,6 +216,7 @@ const applicationTables = {
     name: v.string(),
     password: v.string(),
     assignedTables: v.optional(v.array(v.id("tables"))), // If empty/null, has access to all tables
+    handlesTakeaway: v.optional(v.boolean()), // If true, waiter handles all takeaway/virtual orders
     isDefault: v.optional(v.boolean()),
   }).index("by_restaurant", ["restaurantId"]),
 

@@ -264,5 +264,15 @@
     "waiter_password_placeholder": "Waiter Password",
     "sign_in": "Sign in",
     "signing_in": "Signing in...",
-    "login_failed": "Login failed"
+    "login_failed": "Login failed",
+    "dine_in": "Dine In",
+    "takeaway": "Takeaway",
+    "confirm_bulk_clear": "Are you sure you want to clear {count} tables?",
+    "deselect_all": "Deselect All",
+    "select_all": "Select All",
+    "clear_selected_tables": "Clear Selected Tables",
+    "selected": "Selected",
+    "tap_to_select": "Tap to Select",
+    "tables_assigned": "Tables Assigned",
+    "order": "Order"
 }

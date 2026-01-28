@@ -9,6 +9,7 @@ export interface WaiterSession {
     restaurantId: Id<"restaurants">;
     name: string;
     assignedTables?: Id<"tables">[];
+    handlesTakeaway?: boolean;
 }
 
 export interface WaiterContextType {

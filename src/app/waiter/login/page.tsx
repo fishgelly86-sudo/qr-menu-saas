@@ -29,6 +29,7 @@ export default function WaiterLoginPage() {
                 restaurantId: result.restaurantId,
                 name: result.name,
                 assignedTables: result.assignedTables,
+                handlesTakeaway: result.handlesTakeaway || false,
                 loginTime: Date.now(),
             }));
 

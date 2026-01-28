@@ -100,6 +100,7 @@ export default function CustomerMenuPage() {
     const [tableInput, setTableInput] = useState("");
 
     const [sessionId, setSessionId] = useState<string | null>(null);
+    const [sessionInitialized, setSessionInitialized] = useState(false);
     const [sessionError, setSessionError] = useState<string | null>(null);
 
     const [cart, setCart] = useState<CartItem[]>([]);
@@ -158,6 +159,7 @@ export default function CustomerMenuPage() {
     );
     const callWaiter = useMutation(api.waiterCalls.callWaiter);
     const createSession = useMutation(api.sessions.createTableSession);
+    const heartbeat = useMutation(api.sessions.heartbeatSession);
     const refreshSession = useMutation(api.sessions.refreshSession);
     const createVirtualTableMutation = useMutation(api.tables.createVirtualTable);
 
@@ -181,6 +183,21 @@ export default function CustomerMenuPage() {
         }
     }, []);
 
+    // Session heartbeat - keep session alive every 5 minutes
+    useEffect(() => {
+        if (!sessionId || !sessionInitialized) return;
+
+        const heartbeatInterval = setInterval(async () => {
+            try {
+                await heartbeat({ sessionId });
+            } catch (error) {
+                console.error("Heartbeat failed:", error);
+            }
+        }, 5 * 60 * 1000); // 5 minutes
+
+        return () => clearInterval(heartbeatInterval);
+    }, [sessionId, sessionInitialized]);
+
     useEffect(() => {
         if (!tableParam) {
             setShowTableSelector(true);
@@ -191,9 +208,10 @@ export default function CustomerMenuPage() {
         }
     }, [tableParam, menu?.restaurant?._id]);
 
-    const handleSessionInit = async (tNum: string) => {
+    const handleSessionInit = async (tNum: string, retryCount = 0) => {
         if (!menu?.restaurant?._id) return;
 
+        setSessionInitialized(false);
         let currentSId = localStorage.getItem("tableSessionId");
         if (!currentSId) {
             currentSId = Math.random().toString(36).substring(2) + Date.now().toString(36);
@@ -210,9 +228,22 @@ export default function CustomerMenuPage() {
                 setSessionId(result.sessionId);
                 localStorage.setItem("tableSessionId", result.sessionId);
                 setSessionError(null);
+                setSessionInitialized(true);
+            } else {
+                throw new Error("Session creation failed - no session ID returned");
             }
         } catch (error: any) {
-            setSessionError(error.message);
+            console.error("Session initialization error:", error);
+
+            // Retry logic with exponential backoff (max 3 retries)
+            if (retryCount < 3) {
+                const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+                console.log(`Retrying session init in ${delay}ms (attempt ${retryCount + 1}/3)`);
+                setTimeout(() => handleSessionInit(tNum, retryCount + 1), delay);
+            } else {
+                setSessionError(error.message || "Failed to initialize session. Please refresh the page.");
+                setSessionInitialized(false);
+            }
         }
     };
 
@@ -624,10 +655,15 @@ export default function CustomerMenuPage() {
     const handlePlaceOrder = async () => {
         if (!tableNumber || cart.length === 0 || !menu?.restaurant?._id) return;
 
-        if (!sessionId) {
-            showToast((t as any)("initializing_session") || "Initializing session... please wait.", "error");
+        // Check if session is initialized
+        if (!sessionId || !sessionInitialized) {
+            showToast("Please wait, initializing your session...", "error");
             // Try to re-init if missing
-            if (tableNumber) handleSessionInit(tableNumber);
+            if (tableNumber) {
+                await handleSessionInit(tableNumber);
+                // After init completes, user can try again
+                showToast("Session ready! Please try placing your order again.", "success");
+            }
             return;
         }
 
@@ -684,9 +720,19 @@ export default function CustomerMenuPage() {
         } catch (error: any) {
             // Check for specific error messages (Convex errors are often wrapped)
             const msg = error.message || "Failed to place order";
-            if (msg.includes("Price mismatch")) {
+
+            // Handle session expiration
+            if (msg.includes("Session expired") || msg.includes("No active session")) {
+                showToast("Your session has expired. Refreshing...", "error");
+                setSessionError("Session expired");
+                setSessionInitialized(false);
+                // Try to re-initialize
+                if (tableNumber) {
+                    await handleSessionInit(tableNumber);
+                    showToast("Session refreshed! Please try placing your order again.", "success");
+                }
+            } else if (msg.includes("Price mismatch")) {
                 showToast("Menu prices have changed. Please refresh the page.", "error");
-                // Optional: Trigger menu refresh
             } else {
                 showToast(msg, "error");
             }
@@ -732,6 +778,21 @@ export default function CustomerMenuPage() {
             </div>
         );
     }
+
+    // Session initialization loading state
+    if (tableNumber && !sessionInitialized && !sessionError) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#f5f3f0]">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
+                    <p className="text-[#1a1a2e] font-serif italic">
+                        Initializing your session...
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
 
     // Security check: Suspended or Expired
     const isSuspended = menu?.restaurant?.subscriptionStatus === "suspended";

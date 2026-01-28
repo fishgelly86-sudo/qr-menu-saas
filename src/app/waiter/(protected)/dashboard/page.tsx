@@ -4,7 +4,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Bell, CheckCircle2, Trash2, Utensils, Volume2, Edit, X } from "lucide-react";
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useNotificationSound } from "@/hooks/useNotificationSound";
+import { useEnhancedNotifications } from "@/hooks/useEnhancedNotifications";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useWaiter } from "@/hooks/useWaiter";
 
@@ -14,14 +14,39 @@ export default function WaiterDashboard() {
     const restaurantId = session.restaurantId;
     const assignedTableIds = session.assignedTables || [];
     const hasAssignments = assignedTableIds.length > 0;
+    const handlesTakeaway = session.handlesTakeaway || false;
 
     // Helper to check if a table is assigned to this waiter
-    const isAssigned = (tableId: string) => {
-        if (!hasAssignments) return true; // Default waiter sees all
-        return assignedTableIds.includes(tableId as any);
+    const isAssigned = (tableId: string, table?: any) => {
+        // If no specific assignments and doesn't handle takeaway, sees all
+        if (!hasAssignments && !handlesTakeaway) return true;
+
+        // If table is virtual/takeaway, check handlesTakeaway flag
+        if (table?.isVirtual) {
+            return handlesTakeaway;
+        }
+
+        // For regular tables, check assignedTables
+        if (hasAssignments) {
+            return assignedTableIds.includes(tableId as any);
+        }
+
+        return false;
     };
 
     const restaurant = useQuery(api.restaurants.getRestaurant, { id: restaurantId });
+
+
+    // Edit order state
+    const [activeTab, setActiveTab] = useState<'dine-in' | 'takeaway'>('dine-in');
+    const [selectedDirtyTables, setSelectedDirtyTables] = useState<Set<string>>(new Set());
+
+    // Enhanced Notification Logic
+    const { showNotification, audioEnabled, notificationPermission } = useEnhancedNotifications(
+        "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"
+    );
+    const prevCallCount = useRef(0);
+    const prevApprovalCount = useRef(0);
 
     // Queries
     const allWaiterCalls = useQuery(api.waiterCalls.getWaiterCallsByRestaurant,
@@ -44,11 +69,71 @@ export default function WaiterDashboard() {
         restaurant ? { restaurantSlug: restaurant.slug } : "skip"
     );
 
-    // Filter data based on assignments
-    const waiterCalls = useMemo(() => allWaiterCalls?.filter((c: any) => isAssigned(c.tableId)), [allWaiterCalls, assignedTableIds]);
-    const readyOrders = useMemo(() => allReadyOrders?.filter((o: any) => isAssigned(o.tableId)), [allReadyOrders, assignedTableIds]);
-    const approvalOrders = useMemo(() => allApprovalOrders?.filter((o: any) => isAssigned(o.tableId)), [allApprovalOrders, assignedTableIds]);
-    const dirtyTables = useMemo(() => allTables?.filter((t: any) => t.status === "dirty" && isAssigned(t._id)), [allTables, assignedTableIds]);
+    // Filter Logic
+    const filterByTab = (table: any) => {
+        if (!table) return false;
+        if (activeTab === 'takeaway') return table.isVirtual === true;
+        return !table.isVirtual;
+    };
+
+    const waiterCalls = useMemo(() =>
+        allWaiterCalls?.filter((c: any) => isAssigned(c.tableId, c.table) && filterByTab(c.table)) ?? [],
+        [allWaiterCalls, assignedTableIds, handlesTakeaway, activeTab]);
+
+    const readyOrders = useMemo(() =>
+        allReadyOrders?.filter((o: any) => isAssigned(o.tableId, o.table) && filterByTab(o.table)) ?? [],
+        [allReadyOrders, assignedTableIds, handlesTakeaway, activeTab]);
+
+    const approvalOrders = useMemo(() =>
+        allApprovalOrders?.filter((o: any) => isAssigned(o.tableId, o.table) && filterByTab(o.table)) ?? [],
+        [allApprovalOrders, assignedTableIds, handlesTakeaway, activeTab]);
+
+    // Independent counts for badges (not filtered by activeTab)
+    const dineInApprovalCount = useMemo(() =>
+        allApprovalOrders?.filter((o: any) => isAssigned(o.tableId, o.table) && !o.table?.isVirtual).length ?? 0,
+        [allApprovalOrders, assignedTableIds, handlesTakeaway]);
+
+    const takeawayApprovalCount = useMemo(() =>
+        allApprovalOrders?.filter((o: any) => isAssigned(o.tableId, o.table) && o.table?.isVirtual).length ?? 0,
+        [allApprovalOrders, assignedTableIds, handlesTakeaway]);
+
+    const dirtyTables = useMemo(() =>
+        allTables?.filter((t: any) => t.status === "dirty" && isAssigned(t._id, t) && filterByTab(t)) ?? [],
+        [allTables, assignedTableIds, handlesTakeaway, activeTab]);
+
+    // Selection Logic
+    const toggleTableSelection = (tableId: string) => {
+        const newSet = new Set(selectedDirtyTables);
+        if (newSet.has(tableId)) {
+            newSet.delete(tableId);
+        } else {
+            newSet.add(tableId);
+        }
+        setSelectedDirtyTables(newSet);
+    };
+
+    const handleSelectAll = () => {
+        if (selectedDirtyTables.size === dirtyTables.length) {
+            setSelectedDirtyTables(new Set());
+        } else {
+            setSelectedDirtyTables(new Set(dirtyTables.map((t: any) => t._id)));
+        }
+    };
+
+    const handleBulkClear = async () => {
+        if (selectedDirtyTables.size === 0) return;
+        if (!confirm(t("confirm_bulk_clear", { count: selectedDirtyTables.size } as any) || `Clear ${selectedDirtyTables.size} tables?`)) return;
+
+        for (const tableId of Array.from(selectedDirtyTables)) {
+            await updateTableStatus({ tableId: tableId as any, status: "free" });
+        }
+        setSelectedDirtyTables(new Set());
+    };
+
+    // Reset selection when tab changes
+    useEffect(() => {
+        setSelectedDirtyTables(new Set());
+    }, [activeTab]);
 
     // Mutations
     const resolveCall = useMutation(api.waiterCalls.resolveWaiterCall);
@@ -65,29 +150,41 @@ export default function WaiterDashboard() {
     const [showAddItem, setShowAddItem] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
 
-    // Audio Logic
-    const [audioEnabled, setAudioEnabled] = useState(false);
-    const playSound = useNotificationSound("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
-    const prevCallCount = useRef(0);
-    const prevApprovalCount = useRef(0);
-
     useEffect(() => {
         if (waiterCalls) {
             const currentCallCount = waiterCalls.length;
-            if (currentCallCount > prevCallCount.current && audioEnabled) {
-                playSound();
+            if (currentCallCount > prevCallCount.current) {
+                // Get the new call details
+                const newCall = waiterCalls[0];
+                const callType = newCall?.type === 'water' ? t("water_requested") :
+                    newCall?.type === 'bill' ? t("bill_requested") :
+                        t("assistance_needed");
+
+                showNotification({
+                    title: `${t("service_calls")} - ${t("table_no")} ${newCall?.table?.number}`,
+                    body: callType,
+                });
             }
             prevCallCount.current = currentCallCount;
         }
 
         if (approvalOrders) {
             const currentApprovalCount = approvalOrders.length;
-            if (currentApprovalCount > prevApprovalCount.current && audioEnabled) {
-                playSound();
+            if (currentApprovalCount > prevApprovalCount.current) {
+                // Get the new order details
+                const newOrder = approvalOrders[0];
+                const tableInfo = activeTab === 'takeaway'
+                    ? `${t("order")} #${newOrder?._id.slice(-4)}`
+                    : `${t("table_no")} ${newOrder?.table?.number}`;
+
+                showNotification({
+                    title: t("needs_approval"),
+                    body: `${tableInfo} - ${newOrder?.items?.length || 0} items`,
+                });
             }
             prevApprovalCount.current = currentApprovalCount;
         }
-    }, [waiterCalls, approvalOrders, audioEnabled, playSound]);
+    }, [waiterCalls, approvalOrders, showNotification, t, activeTab]);
 
     if (!restaurant || !waiterCalls || !readyOrders || !dirtyTables || !approvalOrders) {
         return <div className="p-8 text-center">{t("loading_waiter_dashboard")}</div>;
@@ -112,33 +209,61 @@ export default function WaiterDashboard() {
     }
 
     return (
-        <div className="max-w-md mx-auto min-h-screen pb-20 relative">
-            {/* Audio Enable Overlay */}
-            {!audioEnabled && (
-                <div className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center backdrop-blur-sm rounded-lg">
-                    <div className="bg-white p-8 rounded-2xl text-center max-w-xs shadow-2xl">
-                        <Volume2 className="w-12 h-12 text-indigo-600 mx-auto mb-4" />
-                        <h2 className="text-xl font-bold text-gray-900 mb-2">{t("enable_alerts")}</h2>
-                        <p className="text-gray-500 mb-6 text-sm">
-                            {t("enable_audio_msg")}
-                        </p>
+        <div className="max-w-md mx-auto min-h-screen pb-20 relative bg-gray-50">
+
+            {/* Header & Tabs */}
+            <div className="bg-white sticky top-0 z-10 shadow-sm">
+                <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+                    <h1 className="font-bold text-gray-900 flex items-center gap-2">
+                        <Utensils className="w-5 h-5 text-indigo-600" />
+                        {restaurant.name}
+                    </h1>
+                    {hasAssignments && (
+                        <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded-full font-medium">
+                            {assignedTableIds.length} {t("tables_assigned" as any) || "Tables"}
+                        </span>
+                    )}
+                </div>
+
+
+
+                <div className="grid grid-cols-2 p-1 gap-1 bg-gray-100 m-2 rounded-lg overflow-visible">
+                    <div className="relative overflow-visible">
                         <button
-                            onClick={() => setAudioEnabled(true)}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl transition-colors w-full"
+                            onClick={() => setActiveTab('dine-in')}
+                            className={`w-full py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'dine-in'
+                                ? 'bg-white text-indigo-600 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
+                                }`}
                         >
-                            {t("enable_audio")}
+                            {t("dine_in" as any) || "Dine In"}
                         </button>
+                        {dineInApprovalCount > 0 && (
+                            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[22px] h-[22px] flex items-center justify-center px-1.5 z-50 border-2 border-white shadow-sm pointer-events-none">
+                                {dineInApprovalCount}
+                            </span>
+                        )}
+                    </div>
+                    <div className="relative overflow-visible">
+                        <button
+                            onClick={() => setActiveTab('takeaway')}
+                            className={`w-full py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'takeaway'
+                                ? 'bg-white text-indigo-600 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                        >
+                            {t("takeaway" as any) || "Takeaway"}
+                        </button>
+                        {takeawayApprovalCount > 0 && (
+                            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[22px] h-[22px] flex items-center justify-center px-1.5 z-50 border-2 border-white shadow-sm pointer-events-none">
+                                {takeawayApprovalCount}
+                            </span>
+                        )}
                     </div>
                 </div>
-            )}
+            </div>
 
-            <div className="p-4 space-y-8">
-                {/* Assigned Tables Header (Optional info) */}
-                {hasAssignments && (
-                    <div className="text-sm text-gray-500 flex justify-end">
-                        Showing data for {assignedTableIds.length} assigned tables.
-                    </div>
-                )}
+            <div className="p-4 space-y-6">
 
                 {/* 1. PENDING APPROVALS (Highest Priority) */}
                 {approvalOrders.length > 0 && (
@@ -150,9 +275,11 @@ export default function WaiterDashboard() {
 
                         <div className="space-y-3">
                             {approvalOrders.map((order: any) => (
-                                <div key={order._id} className="bg-white border-l-4 border-indigo-500 p-4 rounded-r-xl shadow-lg ring-1 ring-indigo-100">
+                                <div key={order._id} className="bg-white border-l-4 border-indigo-500 p-4 rounded-r-xl shadow-sm ring-1 ring-indigo-50">
                                     <div className="flex justify-between items-start mb-2">
-                                        <div className="text-2xl font-bold text-gray-900">{t("table_no")} {order.table?.number}</div>
+                                        <div className="text-xl font-bold text-gray-900">
+                                            {activeTab === 'takeaway' ? (t("order") + " #" + order._id.slice(-4)) : (t("table_no") + " " + order.table?.number)}
+                                        </div>
                                         <span className="bg-indigo-100 text-indigo-800 text-xs font-bold px-2 py-1 rounded-full">
                                             #{order._id.slice(-4)}
                                         </span>
@@ -206,40 +333,37 @@ export default function WaiterDashboard() {
                     </section>
                 )}
 
-                {/* 2. SERVICE CALLS */}
-                <section>
-                    <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                        <Bell className="w-4 h-4" />
-                        {t("service_calls")} ({waiterCalls.length})
-                    </h2>
+                {/* 2. SERVICE CALLS (Mostly relevant for Dine-In, but kept generic) */}
+                {waiterCalls.length > 0 && (
+                    <section>
+                        <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <Bell className="w-4 h-4" />
+                            {t("service_calls")} ({waiterCalls.length})
+                        </h2>
 
-                    <div className="space-y-3">
-                        {waiterCalls.length === 0 && (
-                            <div className="text-center py-8 text-gray-400 bg-white rounded-xl border border-dashed border-gray-300">
-                                {t("no_active_calls")}
-                            </div>
-                        )}
-                        {waiterCalls.map((call: any) => (
-                            <div
-                                key={call._id}
-                                onClick={() => resolveCall({ callId: call._id })}
-                                className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-sm flex justify-between items-center cursor-pointer active:scale-95 transition-transform"
-                            >
-                                <div>
-                                    <div className="text-2xl font-bold text-red-900">{t("table_no")} {call.table?.number}</div>
-                                    <div className="text-red-700 font-medium capitalize flex items-center gap-2">
-                                        {call.type === 'water' && t("water_requested")}
-                                        {call.type === 'bill' && t("bill_requested")}
-                                        {call.type === 'help' && t("assistance_needed")}
+                        <div className="space-y-3">
+                            {waiterCalls.map((call: any) => (
+                                <div
+                                    key={call._id}
+                                    onClick={() => resolveCall({ callId: call._id })}
+                                    className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-sm flex justify-between items-center cursor-pointer active:scale-95 transition-transform"
+                                >
+                                    <div>
+                                        <div className="text-2xl font-bold text-red-900">{t("table_no")} {call.table?.number}</div>
+                                        <div className="text-red-700 font-medium capitalize flex items-center gap-2">
+                                            {call.type === 'water' && t("water_requested")}
+                                            {call.type === 'bill' && t("bill_requested")}
+                                            {call.type === 'help' && t("assistance_needed")}
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-2 rounded-full shadow-sm">
+                                        <CheckCircle2 className="w-6 h-6 text-red-500" />
                                     </div>
                                 </div>
-                                <div className="bg-white p-2 rounded-full shadow-sm">
-                                    <CheckCircle2 className="w-6 h-6 text-red-500" />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
+                            ))}
+                        </div>
+                    </section>
+                )}
 
                 {/* 3. READY TO SERVE */}
                 <section>
@@ -261,7 +385,9 @@ export default function WaiterDashboard() {
                                 className="bg-green-50 border-l-4 border-green-500 p-4 rounded-r-xl shadow-sm cursor-pointer active:scale-95 transition-transform"
                             >
                                 <div className="flex justify-between items-start mb-2">
-                                    <div className="text-2xl font-bold text-green-900">{t("table_no")} {order.table?.number}</div>
+                                    <div className="text-xl font-bold text-green-900">
+                                        {activeTab === 'takeaway' ? (t("order") + " #" + order._id.slice(-4)) : (t("table_no") + " " + order.table?.number)}
+                                    </div>
                                     <span className="bg-green-200 text-green-800 text-xs font-bold px-2 py-1 rounded-full">
                                         #{order._id.slice(-4)}
                                     </span>
@@ -291,10 +417,33 @@ export default function WaiterDashboard() {
 
                 {/* 4. CLEAR TABLES */}
                 <section>
-                    <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                        <Trash2 className="w-4 h-4" />
-                        {t("clear_tables")} ({dirtyTables.length})
-                    </h2>
+                    <div className="flex justify-between items-end mb-3">
+                        <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                            <Trash2 className="w-4 h-4" />
+                            {t("clear_tables")} ({dirtyTables.length})
+                        </h2>
+                        {dirtyTables.length > 0 && (
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleSelectAll}
+                                    className="text-xs font-bold text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded transition-colors"
+                                >
+                                    {selectedDirtyTables.size === dirtyTables.length ? (t("deselect_all" as any) || "Deselect All") : (t("select_all" as any) || "Select All")}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {selectedDirtyTables.size > 0 && (
+                        <div className="mb-4 sticky top-36 z-20">
+                            <button
+                                onClick={handleBulkClear}
+                                className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-indigo-700 transition-colors animate-in fade-in slide-in-from-top-2"
+                            >
+                                {t("clear_selected_tables" as any) || "Clear Selected Tables"} ({selectedDirtyTables.size})
+                            </button>
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-2 gap-3">
                         {dirtyTables.length === 0 && (
@@ -302,16 +451,33 @@ export default function WaiterDashboard() {
                                 {t("all_tables_clean")}
                             </div>
                         )}
-                        {dirtyTables.map((table: any) => (
-                            <button
-                                key={table._id}
-                                onClick={() => updateTableStatus({ tableId: table._id, status: "free" })}
-                                className="bg-yellow-50 border-2 border-yellow-400 p-4 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform h-32"
-                            >
-                                <span className="text-3xl font-bold text-yellow-900">{t("table_no")} {table.number}</span>
-                                <span className="text-yellow-700 font-medium text-sm">{t("mark_free")}</span>
-                            </button>
-                        ))}
+                        {dirtyTables.map((table: any) => {
+                            const isSelected = selectedDirtyTables.has(table._id);
+                            return (
+                                <button
+                                    key={table._id}
+                                    onClick={() => toggleTableSelection(table._id)}
+                                    className={`
+                                        relative p-4 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 transition-all h-32
+                                        ${isSelected
+                                            ? 'bg-indigo-50 border-2 border-indigo-500 ring-2 ring-indigo-200'
+                                            : 'bg-yellow-50 border-2 border-yellow-400 opacity-90 hover:opacity-100'}
+                                    `}
+                                >
+                                    {isSelected && (
+                                        <div className="absolute top-2 right-2 bg-indigo-500 text-white rounded-full p-0.5">
+                                            <CheckCircle2 className="w-4 h-4" />
+                                        </div>
+                                    )}
+                                    <span className={`text-3xl font-bold ${isSelected ? 'text-indigo-900' : 'text-yellow-900'}`}>
+                                        {activeTab === 'takeaway' ? (table.number.replace('TAKEAWAY-', '#')) : (t("table_no") + " " + table.number)}
+                                    </span>
+                                    <span className={`font-medium text-sm ${isSelected ? 'text-indigo-700' : 'text-yellow-700'}`}>
+                                        {isSelected ? (t("selected" as any) || "Selected") : (t("tap_to_select" as any) || "Tap to Select")}
+                                    </span>
+                                </button>
+                            );
+                        })}
                     </div>
                 </section>
             </div>

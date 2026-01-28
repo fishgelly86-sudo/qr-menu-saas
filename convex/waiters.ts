@@ -11,6 +11,7 @@ export const createWaiter = mutation({
         name: v.string(),
         password: v.string(),
         assignedTables: v.optional(v.array(v.id("tables"))),
+        handlesTakeaway: v.optional(v.boolean()),
     },
     handler: async (ctx, args) => {
         const userId = await getUserId(ctx);
@@ -38,6 +39,7 @@ export const createWaiter = mutation({
             name: args.name,
             password: args.password,
             assignedTables: args.assignedTables,
+            handlesTakeaway: args.handlesTakeaway,
             isDefault: false,
         });
 
@@ -54,6 +56,7 @@ export const updateWaiter = mutation({
         name: v.optional(v.string()),
         password: v.optional(v.string()),
         assignedTables: v.optional(v.array(v.id("tables"))),
+        handlesTakeaway: v.optional(v.boolean()),
     },
     handler: async (ctx, args) => {
         const userId = await getUserId(ctx);
@@ -85,6 +88,7 @@ export const updateWaiter = mutation({
         if (args.name !== undefined) updates.name = args.name;
         if (args.password !== undefined) updates.password = args.password;
         if (args.assignedTables !== undefined) updates.assignedTables = args.assignedTables;
+        if (args.handlesTakeaway !== undefined) updates.handlesTakeaway = args.handlesTakeaway;
 
         await ctx.db.patch(args.waiterId, updates);
     },
@@ -244,7 +248,8 @@ export const waiterLogin = mutation({
                     waiterId: match._id,
                     restaurantId: restaurant._id,
                     name: match.name,
-                    assignedTables: match.assignedTables
+                    assignedTables: match.assignedTables,
+                    handlesTakeaway: match.handlesTakeaway || false,
                 };
             }
         }

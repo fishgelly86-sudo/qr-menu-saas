@@ -116,6 +116,26 @@ export const refreshSession = mutation({
     },
 });
 
+export const heartbeatSession = mutation({
+    args: {
+        sessionId: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const session = await ctx.db
+            .query("tableSessions")
+            .withIndex("by_session", (q: any) => q.eq("sessionId", args.sessionId))
+            .first();
+
+        if (!session || session.status !== "active") {
+            return { success: false };
+        }
+
+        // Simple heartbeat - just update lastActivityAt
+        await ctx.db.patch(session._id, { lastActivityAt: Date.now() });
+        return { success: true };
+    },
+});
+
 export const getSessionStatus = query({
     args: { sessionId: v.string() },
     handler: async (ctx, args) => {
@@ -159,7 +179,7 @@ export async function validateSessionInternal(
 
     if (!session) {
         // Fallback: Check if it was expired recently to give better error
-        throw new Error("No active session found. Please scan the QR code again.");
+        throw new Error("No active session found. Please refresh the page or scan the QR code again to start a new session.");
     }
 
     if (session.sessionId !== sessionId) {

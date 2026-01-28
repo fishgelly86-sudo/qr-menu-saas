@@ -6,7 +6,7 @@ import { api } from "../../../../convex/_generated/api";
 import clsx from "clsx";
 import { Clock, Volume2, Printer } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNotificationSound } from "@/hooks/useNotificationSound";
+import { useEnhancedNotifications } from "@/hooks/useEnhancedNotifications";
 
 export default function KitchenPage() {
     // Hardcoded slug for demo
@@ -19,9 +19,10 @@ export default function KitchenPage() {
 
     const updateBatchStatus = useMutation(api.orders.updateBatchOrderStatus);
 
-    // Audio Logic
-    const [audioEnabled, setAudioEnabled] = useState(false);
-    const playSound = useNotificationSound("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"); // Kitchen Alert
+    // Enhanced Notification Logic
+    const { showNotification, audioEnabled, notificationPermission } = useEnhancedNotifications(
+        "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"
+    );
     const prevPendingCount = useRef(0);
 
     // Printer Logic
@@ -103,12 +104,22 @@ export default function KitchenPage() {
     useEffect(() => {
         if (orders) {
             const currentPendingCount = pendingOrders.length;
-            if (currentPendingCount > prevPendingCount.current && audioEnabled) {
-                playSound();
+            if (currentPendingCount > prevPendingCount.current) {
+                // Get the new order details
+                const newOrder = pendingOrders[0];
+                const isTakeaway = newOrder?.table?.isVirtual || newOrder?.table?.number?.toString().toUpperCase().startsWith("TAKEAWAY");
+                const tableInfo = isTakeaway
+                    ? `TAKEAWAY #${newOrder?.table?.number}`
+                    : `Table ${newOrder?.table?.number}`;
+
+                showNotification({
+                    title: `New Kitchen Order - ${tableInfo}`,
+                    body: `${newOrder?.items?.length || 0} items to prepare`,
+                });
             }
             prevPendingCount.current = currentPendingCount;
         }
-    }, [orders, pendingOrders.length, audioEnabled, playSound]);
+    }, [orders, pendingOrders.length, showNotification]);
 
     // Auto-Print Logic (Keep per-order logic for tickets)
     useEffect(() => {
@@ -342,20 +353,6 @@ export default function KitchenPage() {
 
             {/* Main Application */}
             <div className="h-full flex flex-col p-4 gap-4 print:hidden">
-                {!audioEnabled && (
-                    <div className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center backdrop-blur-sm">
-                        <div className="bg-gray-800 p-8 rounded-2xl text-center max-w-md border border-gray-700 shadow-2xl">
-                            <Volume2 className="w-16 h-16 text-blue-500 mx-auto mb-6" />
-                            <h2 className="text-2xl font-bold text-white mb-2">Enable Kitchen Audio</h2>
-                            <button
-                                onClick={() => setAudioEnabled(true)}
-                                className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-8 rounded-xl transition-colors w-full text-lg mt-4"
-                            >
-                                Start Shift & Enable Audio
-                            </button>
-                        </div>
-                    </div>
-                )}
 
                 <header className="flex justify-between items-center mb-2">
                     <h1 className="text-2xl font-bold text-white">Kitchen Display System (Group View)</h1>
