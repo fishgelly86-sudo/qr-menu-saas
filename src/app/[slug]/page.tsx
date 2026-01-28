@@ -349,6 +349,8 @@ export default function CustomerMenuPage() {
         if (activeOrders) {
             // Find orders that have been archived (cleared) by the manager
             const archivedOrders = activeOrders.filter((o: any) => o.isArchived);
+            // Also check for cancelled/refused orders that the user is currently viewing
+            const cancelledOrders = activeOrders.filter((o: any) => o.status === 'cancelled');
 
             if (archivedOrders.length > 0) {
                 const archivedIds = archivedOrders.map((o: any) => o._id);
@@ -366,16 +368,29 @@ export default function CustomerMenuPage() {
                     showToast(t("table_cleared") || "Table cleared by staff", "success");
                 }
             }
+
+            // Handle Cancelled Orders - Auto dismiss
+            if (cancelledOrders.length > 0) {
+                const cancelledIds = cancelledOrders.map((o: any) => o._id);
+
+                // If the CURRENTLY viewed order is cancelled, we want to kick them back to menu
+                if (currentOrderId && cancelledIds.includes(currentOrderId)) {
+                    setCurrentOrderId(null);
+                    showToast("Your order was not accepted. Please try again or contact a waiter.", "error"); // Use simple English fallback or key
+                }
+
+                // Also remove from active tracking so it doesn't reappear
+                setActiveOrderIds((prev) => {
+                    const newValue = prev.filter(id => !cancelledIds.includes(id));
+                    return newValue.length !== prev.length ? newValue : prev;
+                });
+            }
         }
     }, [activeOrders, currentOrderId, t]);
 
     // Sync local history with valid backend orders (Optional safety check)
     useEffect(() => {
-        if (activeOrders) {
-            const validOrderIds = activeOrders.map((o: any) => o._id);
-            // Only update if lengths differ significantly or we have ids in local that aren't in remote (and aren't just loading)
-            // For now, the archive check above handles the critical "Table Clear" case.
-        }
+        // This effect can verify if orders still exist, but our archive/cancel check handles the main cases.
     }, [activeOrders]);
 
     // No auto-clear for cancelled orders - let user dismiss manually via banner

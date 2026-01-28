@@ -264,5 +264,15 @@
     "waiter_password_placeholder": "كلمة مرور النادل",
     "sign_in": "تسجيل الدخول",
     "signing_in": "جاري تسجيل الدخول...",
-    "login_failed": "فشل تسجيل الدخول"
+    "login_failed": "فشل تسجيل الدخول",
+    "dine_in": "محلي",
+    "takeaway": "سفري",
+    "confirm_bulk_clear": "هل أنت متأكد من مسح {count} طاولات؟",
+    "deselect_all": "إلغاء تحديد الكل",
+    "select_all": "تحديد الكل",
+    "clear_selected_tables": "مسح الطاولات المحددة",
+    "selected": "محدد",
+    "tap_to_select": "اضغط للتحديد",
+    "tables_assigned": "طاولات معينة",
+    "order": "الطلب"
 }

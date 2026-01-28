@@ -97,6 +97,15 @@ export default function WaiterDashboard() {
         allApprovalOrders?.filter((o: any) => isAssigned(o.tableId, o.table) && o.table?.isVirtual).length ?? 0,
         [allApprovalOrders, assignedTableIds, handlesTakeaway]);
 
+    // Independent counts for waiter calls (not filtered by activeTab)
+    const dineInCallCount = useMemo(() =>
+        allWaiterCalls?.filter((c: any) => isAssigned(c.tableId, c.table) && !c.table?.isVirtual).length ?? 0,
+        [allWaiterCalls, assignedTableIds, handlesTakeaway]);
+
+    const takeawayCallCount = useMemo(() =>
+        allWaiterCalls?.filter((c: any) => isAssigned(c.tableId, c.table) && c.table?.isVirtual).length ?? 0,
+        [allWaiterCalls, assignedTableIds, handlesTakeaway]);
+
     const dirtyTables = useMemo(() =>
         allTables?.filter((t: any) => t.status === "dirty" && isAssigned(t._id, t) && filterByTab(t)) ?? [],
         [allTables, assignedTableIds, handlesTakeaway, activeTab]);
@@ -238,9 +247,16 @@ export default function WaiterDashboard() {
                         >
                             {t("dine_in" as any) || "Dine In"}
                         </button>
+                        {/* Approval Badge (Top-Right) */}
                         {dineInApprovalCount > 0 && (
                             <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[22px] h-[22px] flex items-center justify-center px-1.5 z-50 border-2 border-white shadow-sm pointer-events-none">
                                 {dineInApprovalCount}
+                            </span>
+                        )}
+                        {/* Waiter Call Badge (Top-Left) */}
+                        {dineInCallCount > 0 && (
+                            <span className="absolute -top-2 -left-2 bg-amber-500 text-white rounded-full min-w-[22px] h-[22px] flex items-center justify-center z-50 border-2 border-white shadow-sm pointer-events-none animate-pulse">
+                                <Bell className="w-3 h-3" />
                             </span>
                         )}
                     </div>
@@ -254,9 +270,16 @@ export default function WaiterDashboard() {
                         >
                             {t("takeaway" as any) || "Takeaway"}
                         </button>
+                        {/* Approval Badge (Top-Right) */}
                         {takeawayApprovalCount > 0 && (
                             <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[22px] h-[22px] flex items-center justify-center px-1.5 z-50 border-2 border-white shadow-sm pointer-events-none">
                                 {takeawayApprovalCount}
+                            </span>
+                        )}
+                        {/* Waiter Call Badge (Top-Left) */}
+                        {takeawayCallCount > 0 && (
+                            <span className="absolute -top-2 -left-2 bg-amber-500 text-white rounded-full min-w-[22px] h-[22px] flex items-center justify-center z-50 border-2 border-white shadow-sm pointer-events-none animate-pulse">
+                                <Bell className="w-3 h-3" />
                             </span>
                         )}
                     </div>
