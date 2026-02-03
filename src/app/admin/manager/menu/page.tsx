@@ -22,6 +22,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { useToast } from "@/components/ui/Toast";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import { useRestaurant } from "../RestaurantContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 function AdminItemImage({ item }: { item: any }) {
     const getImageUrl = useAction(api.files.getImageUrl);
@@ -48,14 +49,7 @@ function AdminItemImage({ item }: { item: any }) {
     return <Image src={url} alt={item.name} fill className="object-cover" />;
 }
 
-// Debug and Claim components removed as per user request to simplify.
-
-
-
-import { useLanguage } from "@/contexts/LanguageContext";
-
 export default function MenuManager() {
-    // 1. Get restaurant from Context
     const { restaurant } = useRestaurant();
     const { t } = useLanguage();
     const restaurantSlug = restaurant?.slug;
@@ -86,7 +80,13 @@ export default function MenuManager() {
     const [editingCategory, setEditingCategory] = useState<any>(null);
     const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<string>("");
-    const [categoryForm, setCategoryForm] = useState({ name: "", name_ar: "", icon: "" });
+
+    // Stations Query
+    const stations = useQuery(api.stations.getStations, menu?.restaurant?._id ? { restaurantId: menu.restaurant._id } : "skip");
+
+    // Category Form
+    const [categoryForm, setCategoryForm] = useState({ name: "", name_ar: "", icon: "", stationId: "" });
+
     const { showToast } = useToast();
 
     // Search state
@@ -327,7 +327,8 @@ export default function MenuManager() {
                                             setCategoryForm({
                                                 name: category.name,
                                                 name_ar: category.name_ar || "",
-                                                icon: category.icon || ""
+                                                icon: category.icon || "",
+                                                stationId: category.stationId || ""
                                             });
                                             setIsCategoryModalOpen(true);
                                         }}
@@ -750,7 +751,7 @@ export default function MenuManager() {
                 onClose={() => {
                     setIsCategoryModalOpen(false);
                     setEditingCategory(null);
-                    setCategoryForm({ name: "", name_ar: "", icon: "" });
+                    setCategoryForm({ name: "", name_ar: "", icon: "", stationId: "" });
                 }}
                 title={editingCategory ? t("edit" as any) || "Edit Category" : t("add_new_category")}
             >
@@ -775,6 +776,25 @@ export default function MenuManager() {
                             dir="rtl"
                         />
                     </div>
+
+                    {/* Station Selector */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Kitchen Station</label>
+                        <select
+                            value={categoryForm.stationId}
+                            onChange={e => setCategoryForm({ ...categoryForm, stationId: e.target.value })}
+                            className="w-full h-10 px-3 rounded-lg border-gray-300 text-black focus:border-[#D4AF37] focus:ring-[#D4AF37]"
+                        >
+                            <option value="">Default (All Kitchens)</option>
+                            {stations?.map((station: any) => (
+                                <option key={station._id} value={station._id}>
+                                    {station.name}
+                                </option>
+                            ))}
+                        </select>
+                        <p className="text-xs text-gray-500 mt-1">Items in this category will appear on the selected station screen.</p>
+                    </div>
+
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Category Icon</label>
                         <div className="grid grid-cols-5 gap-2 p-2 border border-gray-200 rounded-lg">
@@ -810,7 +830,7 @@ export default function MenuManager() {
                             onClick={() => {
                                 setIsCategoryModalOpen(false);
                                 setEditingCategory(null);
-                                setCategoryForm({ name: "", name_ar: "", icon: "" });
+                                setCategoryForm({ name: "", name_ar: "", icon: "", stationId: "" });
                             }}
                         >
                             {t("cancel")}
@@ -828,7 +848,8 @@ export default function MenuManager() {
                                         categoryId: editingCategory._id,
                                         name: categoryForm.name,
                                         name_ar: categoryForm.name_ar,
-                                        icon: categoryForm.icon
+                                        icon: categoryForm.icon,
+                                        stationId: categoryForm.stationId ? (categoryForm.stationId as any) : undefined
                                     });
                                     showToast(t("save_changes_success" as any) || "Category updated successfully", "success");
                                 } else {
@@ -841,14 +862,15 @@ export default function MenuManager() {
                                         name: categoryForm.name,
                                         name_ar: categoryForm.name_ar,
                                         icon: categoryForm.icon,
-                                        rank: maxRank + 1
+                                        rank: maxRank + 1,
+                                        stationId: categoryForm.stationId ? (categoryForm.stationId as any) : undefined
                                     });
                                     showToast(t("category_created_success"), "success");
                                 }
 
                                 setIsCategoryModalOpen(false);
                                 setEditingCategory(null);
-                                setCategoryForm({ name: "", name_ar: "", icon: "" });
+                                setCategoryForm({ name: "", name_ar: "", icon: "", stationId: "" });
                             }}
                             className="bg-[#D4AF37] text-white hover:bg-[#c4a027]"
                         >

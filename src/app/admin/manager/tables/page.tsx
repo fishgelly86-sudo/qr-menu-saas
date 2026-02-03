@@ -112,7 +112,9 @@ export default function TablesPage() {
       const pngUrl = canvas.toDataURL("image/png");
       const downloadLink = document.createElement("a");
       downloadLink.href = pngUrl;
-      downloadLink.download = `table-${selectedTable.number}-qr.png`;
+      downloadLink.download = selectedTable?.isVirtual
+        ? `takeaway-qr.png`
+        : `table-${selectedTable.number}-qr.png`;
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
@@ -146,6 +148,41 @@ export default function TablesPage() {
           </Button>
         </div>
       </header>
+
+      {/* Takeaway QR Code Section */}
+      <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl shadow-sm border-2 border-purple-200 p-6 mb-8">
+        <div className="flex flex-col md:flex-row items-center gap-6">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-2xl">📦</span>
+              <h2 className="text-xl font-bold text-gray-900">
+                {t("takeaway")} QR Code
+              </h2>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Print this QR code for customers to scan when placing takeaway orders. Each scan creates a unique session.
+            </p>
+            <Button
+              onClick={() => {
+                setSelectedTable({ number: "TAKEAWAY", isVirtual: true });
+                setQrModalOpen(true);
+              }}
+              size="sm"
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              <QrCode className="w-4 h-4 mr-2" />
+              View & Download Takeaway QR
+            </Button>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow-md border border-purple-100">
+            <BrandedQRCode
+              value={`${typeof window !== 'undefined' ? window.location.origin : ''}/${restaurantSlug}?takeaway=true`}
+              logoUrl="/skani-logo.png"
+              size={120}
+            />
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {sortedTables.map((table: any) => (
@@ -248,21 +285,27 @@ export default function TablesPage() {
       <Modal
         isOpen={qrModalOpen}
         onClose={() => setQrModalOpen(false)}
-        title={t("table_qr_title", { number: selectedTable?.number })}
+        title={selectedTable?.isVirtual ? `${t("takeaway")} QR Code` : t("table_qr_title", { number: selectedTable?.number })}
       >
         <div className="flex flex-col items-center space-y-6 py-4">
           <div className="bg-white p-4 rounded-xl shadow-lg border border-gray-100">
             {selectedTable && (
               <BrandedQRCode
                 id="qr-code-wrapper"
-                value={`${window.location.origin}/${restaurantSlug}?table=${selectedTable.number}`}
+                value={
+                  selectedTable.isVirtual
+                    ? `${window.location.origin}/${restaurantSlug}?takeaway=true`
+                    : `${window.location.origin}/${restaurantSlug}?table=${selectedTable.number}`
+                }
                 logoUrl="/skani-logo.png"
                 size={256}
               />
             )}
           </div>
           <p className="text-sm text-gray-500 text-center max-w-xs">
-            {t("qr_code_desc", { number: selectedTable?.number?.toString() || "" })}
+            {selectedTable?.isVirtual
+              ? "Customers scan this code to place takeaway orders. Each scan creates a unique session."
+              : t("qr_code_desc", { number: selectedTable?.number?.toString() || "" })}
           </p>
           <Button onClick={downloadQR} className="w-full">
             <Download className="w-4 h-4 mr-2 ml-2" /> {t("download_png")}

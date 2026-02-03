@@ -276,9 +276,9 @@ export default function StaffSettings() {
                                 onChange={(e) => setNewWaiterHandlesTakeaway(e.target.checked)}
                                 className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                             />
-                            <span className="text-sm font-medium text-gray-700">Handles Takeaway Orders 📦</span>
+                            <span className="text-sm font-medium text-gray-700">{t("handles_takeaway_label" as any)} 📦</span>
                         </label>
-                        <p className="text-xs text-gray-500 mt-1 ml-6">If checked, this waiter will see all takeaway orders</p>
+                        <p className="text-xs text-gray-500 mt-1 ml-6">{t("handles_takeaway_desc" as any)}</p>
                     </div>
 
                     <div className="flex gap-2 justify-end pt-4">
@@ -293,15 +293,14 @@ export default function StaffSettings() {
                 </div>
             </Modal>
 
-            {/* Edit Assignment Modal */}
             <Modal
                 isOpen={!!editingAssignment}
                 onClose={() => setEditingAssignment(null)}
-                title={`Edit Waiter: ${editingAssignment?.name}`}
+                title={t("edit_waiter_title", { name: editingAssignment?.name || "" })}
             >
                 <div className="space-y-4">
                     <p className="text-sm text-gray-500">
-                        Select which tables this waiter is responsible for. If no tables are selected, they will receive notifications for ALL tables.
+                        {t("waiter_assignment_desc" as any)}
                     </p>
 
                     <div className="max-h-[300px] overflow-y-auto grid grid-cols-3 gap-2 p-2 border rounded-lg bg-gray-50">
@@ -337,9 +336,9 @@ export default function StaffSettings() {
                                 onChange={(e) => setHandlesTakeaway(e.target.checked)}
                                 className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                             />
-                            <span className="text-sm font-medium text-gray-700">Handles Takeaway Orders 📦</span>
+                            <span className="text-sm font-medium text-gray-700">{t("handles_takeaway_label" as any)} 📦</span>
                         </label>
-                        <p className="text-xs text-gray-500 mt-1 ml-6">If checked, this waiter will see all takeaway orders</p>
+                        <p className="text-xs text-gray-500 mt-1 ml-6">{t("handles_takeaway_desc" as any)}</p>
                     </div>
 
                     <div className="flex gap-2 justify-end pt-4">

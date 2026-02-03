@@ -37,6 +37,7 @@ import type * as seedGroupVerification from "../seedGroupVerification.js";
 import type * as sessions from "../sessions.js";
 import type * as staff from "../staff.js";
 import type * as staffList from "../staffList.js";
+import type * as stations from "../stations.js";
 import type * as subscriptions from "../subscriptions.js";
 import type * as superAdmin from "../superAdmin.js";
 import type * as superAdminAuth from "../superAdminAuth.js";
@@ -83,6 +84,7 @@ declare const fullApi: ApiFromModules<{
   sessions: typeof sessions;
   staff: typeof staff;
   staffList: typeof staffList;
+  stations: typeof stations;
   subscriptions: typeof subscriptions;
   superAdmin: typeof superAdmin;
   superAdminAuth: typeof superAdminAuth;

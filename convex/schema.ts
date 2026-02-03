@@ -13,6 +13,7 @@ const applicationTables = {
       allowSplitBill: v.boolean(),
       autoUpsell: v.boolean(),
       requireOrderApproval: v.optional(v.boolean()),
+      enableKitchenStations: v.optional(v.boolean()),
     }),
     // Subscription fields (optional for backward compatibility with existing data)
     subscriptionStatus: v.optional(v.union(
@@ -60,6 +61,12 @@ const applicationTables = {
   }).index("by_restaurant", ["restaurantId"])
     .index("by_restaurant_and_number", ["restaurantId", "number"]),
 
+  stations: defineTable({
+    restaurantId: v.id("restaurants"),
+    name: v.string(),
+    isDefault: v.optional(v.boolean()),
+  }).index("by_restaurant", ["restaurantId"]),
+
   categories: defineTable({
     restaurantId: v.id("restaurants"),
     name: v.string(),
@@ -67,6 +74,7 @@ const applicationTables = {
     icon: v.optional(v.string()),
     rank: v.number(),
     deletedAt: v.optional(v.number()),
+    stationId: v.optional(v.id("stations")), // Link to specific station
   }).index("by_restaurant", ["restaurantId"])
     .index("by_restaurant_and_rank", ["restaurantId", "rank"]),
 
@@ -132,6 +140,15 @@ const applicationTables = {
       price: v.optional(v.number()) // Snapshot price (optional for backward compatibility)
     }))),
     addedAt: v.number(),
+    status: v.optional(v.union(
+      v.literal("pending"),
+      v.literal("preparing"),
+      v.literal("ready"),
+      v.literal("served"),
+      v.literal("cancelled"),
+      v.literal("needs_approval")
+    )),
+    completedAt: v.optional(v.number()),
   }).index("by_order", ["orderId"])
     .index("by_menu_item", ["menuItemId"]),
 

@@ -191,11 +191,79 @@ export const createOrder = mutation({
         modifiers: item.modifiers,
         price: item.price,
         addedAt,
+        status: initialStatus as "pending" | "preparing" | "ready" | "served" | "cancelled",
       });
     }
 
     return orderId;
   },
+});
+
+export const updateItemStatus = mutation({
+  args: {
+    orderItemId: v.id("orderItems"),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("preparing"),
+      v.literal("ready"),
+      v.literal("served"),
+      v.literal("served"),
+      v.literal("cancelled"),
+      v.literal("needs_approval")
+    ),
+  },
+  handler: async (ctx, args) => {
+    const orderItem = await ctx.db.get(args.orderItemId);
+    if (!orderItem) throw new Error("Item not found");
+
+    const order = await ctx.db.get(orderItem.orderId);
+    if (!order) throw new Error("Order not found");
+
+    await requireRestaurantManager(ctx, order.restaurantId);
+
+    await ctx.db.patch(args.orderItemId, {
+      status: args.status,
+      completedAt: args.status === "ready" || args.status === "served" ? Date.now() : undefined
+    });
+
+    // Compute and Auto-Update Order Status
+    // If all items are ready/served/cancelled -> Order is ready
+    // If any item is preparing -> Order is preparing
+
+    // Fetch all siblings
+    const siblings = await ctx.db
+      .query("orderItems")
+      .withIndex("by_order", q => q.eq("orderId", orderItem.orderId))
+      .collect();
+
+    const allStatuses = siblings.map(s => s._id === args.orderItemId ? args.status : s.status);
+
+    // Logic for Master Status
+    // 1. If any item is "preparing", master is "preparing"
+    // 2. If all items are "ready" or "served" (ignoring cancelled), master is "ready"
+    // 3. If all items are "served", master is "served"
+
+    const activeItems = siblings.filter(s => s.status !== "cancelled");
+    const activeStatuses = activeItems.map(s => s._id === args.orderItemId ? args.status : s.status);
+
+    let newOrderStatus = order.status;
+
+    if (activeStatuses.every(s => s === "served")) {
+      newOrderStatus = "served";
+    } else if (activeStatuses.every(s => s === "ready" || s === "served")) {
+      newOrderStatus = "ready";
+    } else if (activeStatuses.some(s => s === "preparing" || s === "ready" || s === "served")) {
+      newOrderStatus = "preparing";
+    }
+
+    // Only update if changed and strictly moving forward or logic dictates
+    // (We allow bidirectional for now to fix mistakes)
+    if (newOrderStatus !== order.status) {
+      await ctx.db.patch(order._id, { status: newOrderStatus });
+    }
+
+    return args.orderItemId;
+  }
 });
 
 export const getOrdersByRestaurant = query({
@@ -276,6 +344,15 @@ export const getOrdersByRestaurant = query({
           orderItems.map(async (orderItem) => {
             const menuItem = await ctx.db.get(orderItem.menuItemId as any);
 
+            // Add Station ID to the result for easier frontend filtering
+            let stationId = undefined;
+            if (menuItem && (menuItem as any).categoryId) {
+              const category = await ctx.db.get((menuItem as any).categoryId);
+              if (category) {
+                stationId = (category as any).stationId;
+              }
+            }
+
             let modifiersWithDetails = undefined;
             if (orderItem.modifiers) {
               modifiersWithDetails = await Promise.all(
@@ -293,6 +370,7 @@ export const getOrdersByRestaurant = query({
             return {
               ...orderItem,
               menuItem,
+              stationId, // Pass this up
               modifiers: modifiersWithDetails || orderItem.modifiers,
             };
           })

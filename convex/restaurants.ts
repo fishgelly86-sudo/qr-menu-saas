@@ -261,11 +261,8 @@ export const updateRestaurant = mutation({
     id: v.id("restaurants"),
     isAcceptingOrders: v.optional(v.boolean()),
     settings: v.optional(v.object({
-      requireOrderApproval: v.boolean(),
-      // Add other settings here if we want to update them all at once, 
-      // or just partial updates. 
-      // For now, let's just support merging settings or specific field.
-      // Actually, to avoid overwriting other settings, we should probably patch carefully.
+      requireOrderApproval: v.optional(v.boolean()),
+      enableKitchenStations: v.optional(v.boolean()),
     })),
   },
   handler: async (ctx, args) => {

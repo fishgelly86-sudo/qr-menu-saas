@@ -21,6 +21,7 @@ export const createCategory = mutation({
     name_ar: v.optional(v.string()),
     icon: v.optional(v.string()),
     rank: v.number(),
+    stationId: v.optional(v.id("stations")),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("categories", args);
@@ -33,6 +34,7 @@ export const updateCategory = mutation({
     name: v.optional(v.string()),
     name_ar: v.optional(v.string()),
     icon: v.optional(v.string()),
+    stationId: v.optional(v.id("stations")),
   },
   handler: async (ctx, args) => {
     const { categoryId, ...updates } = args;

@@ -13,14 +13,33 @@ export default function KitchenPage() {
     const restaurantSlug = "burger-bistro";
     const restaurant = useQuery(api.restaurants.getRestaurantBySlug, { slug: restaurantSlug }) as any;
 
+    // 1. Stations Data
+    const stations = useQuery(api.stations.getStations, restaurant ? { restaurantId: restaurant._id } : "skip");
+    const [selectedStationId, setSelectedStationId] = useState<string>("");
+
+    // Load selected station from local storage
+    useEffect(() => {
+        const saved = localStorage.getItem("kitchen_station_id");
+        if (saved) setSelectedStationId(saved);
+    }, []);
+
+    const handleStationChange = (id: string) => {
+        setSelectedStationId(id);
+        if (id) {
+            localStorage.setItem("kitchen_station_id", id);
+        } else {
+            localStorage.removeItem("kitchen_station_id");
+        }
+    };
+
     const orders = useQuery(api.orders.getOrdersByRestaurant,
         restaurant ? { restaurantId: restaurant._id } : "skip"
     ) as any;
 
-    const updateBatchStatus = useMutation(api.orders.updateBatchOrderStatus);
+    const updateItemStatus = useMutation(api.orders.updateItemStatus);
 
     // Enhanced Notification Logic
-    const { showNotification, audioEnabled, notificationPermission } = useEnhancedNotifications(
+    const { showNotification } = useEnhancedNotifications(
         "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"
     );
     const prevPendingCount = useRef(0);
@@ -53,87 +72,100 @@ export default function KitchenPage() {
         localStorage.setItem("kitchen_printed_ids", JSON.stringify(printedOrderIds));
     }, [printedOrderIds]);
 
-    // Grouping Logic
-    // 1. Filter active orders (not paid, cancelled, or served - served usually means done in KDS flow)
-    // Actually, "ready" means ready for pickup. "served" means customer has it.
-    // We only show pending, preparing, ready.
-    const activeOrders = orders?.filter((o: any) =>
-        ["pending", "preparing", "ready"].includes(o.status)
+    // --- FILTERING LOGIC ---
+
+    // 1. Initial Order Filter (Active Only)
+    // We strictly look at ITEM statuses now for the board columns, effectively.
+    // However, the existing architecture is Order-Based logic for columns. 
+    // We must adapt: A "Group" (Table) is New if it has ANY New Items for THIS Station.
+
+    const relevantOrders = orders?.filter((o: any) =>
+        // Must have at least one Item that matches current station (if selected)
+        // AND is not cancelled/paid (unless we want to show history, but usually active only)
+        !o.isArchived &&
+        o.items.some((i: any) =>
+            (selectedStationId ? i.stationId === selectedStationId : true) &&
+            ["pending", "preparing", "ready", "needs_approval"].includes(i.status || "pending")
+        )
     ) || [];
 
     // 2. Group by Table ID
     const groupedOrders: Record<string, any[]> = {};
-    activeOrders.forEach((o: any) => {
+    relevantOrders.forEach((o: any) => {
         const key = o.tableId;
         if (!groupedOrders[key]) groupedOrders[key] = [];
         groupedOrders[key].push(o);
     });
 
-    // 3. Determine Group Status
-    // Priority: Pending > Preparing > Ready
-    // If ANY item is pending, group is "New"
-    // Else if ANY item is preparing, group is "Preparing"
-    // Else (all ready), group is "Ready"
+    // 3. Determine Group Status (Based on RELEVANT items)
     const groups = Object.entries(groupedOrders).map(([tableId, groupOrders]) => {
-        const hasPending = groupOrders.some(o => o.status === "pending");
-        const hasPreparing = groupOrders.some(o => o.status === "preparing");
+        // Collect all relevant items from all orders for this table
+        const validItems = groupOrders.flatMap((o: any) =>
+            o.items.filter((i: any) => selectedStationId ? i.stationId === selectedStationId : true)
+        );
+
+        const hasPending = validItems.some((i: any) => !i.status || i.status === "pending" || i.status === "needs_approval");
+        const hasPreparing = validItems.some((i: any) => i.status === "preparing");
+
+        // Logic: 
+        // If ANY pending -> NEW Column
+        // If NO pending and ANY preparing -> PREP Column
+        // If NO pending and NO preparing and ANY ready -> READY Column
 
         let status = "ready";
         if (hasPending) status = "pending";
         else if (hasPreparing) status = "preparing";
 
-        // Sort orders by time? or keep as is.
-        // We want the table info.
-        const table = groupOrders[0].table;
+        // Sort orders by time
+        const sortedOrders = groupOrders.sort((a, b) => a._creationTime - b._creationTime);
+        const table = sortedOrders[0].table;
 
         return {
             tableId,
             table,
             status,
-            orders: groupOrders.sort((a, b) => a._creationTime - b._creationTime)
+            orders: sortedOrders,
+            validItems // Pass filtered items for easier action handling
         };
-    });
+    }).filter(g => g.validItems.length > 0); // Double check
 
     const pendingGroups = groups.filter(g => g.status === "pending");
     const preparingGroups = groups.filter(g => g.status === "preparing");
     const readyGroups = groups.filter(g => g.status === "ready");
 
-    const pendingOrders = activeOrders.filter((o: any) => o.status === "pending");
+    // Audio Alert Logic
+    const pendingOrdersCount = pendingGroups.reduce((acc, g) => acc + g.validItems.filter((i: any) => !i.status || i.status === "pending" || i.status === "needs_approval").length, 0);
 
-    // Audio Alert Effect (Trigger on new pending ORDERS, not groups, to catch additions)
     useEffect(() => {
-        if (orders) {
-            const currentPendingCount = pendingOrders.length;
-            if (currentPendingCount > prevPendingCount.current) {
-                // Get the new order details
-                const newOrder = pendingOrders[0];
-                const isTakeaway = newOrder?.table?.isVirtual || newOrder?.table?.number?.toString().toUpperCase().startsWith("TAKEAWAY");
-                const tableInfo = isTakeaway
-                    ? `TAKEAWAY #${newOrder?.table?.number}`
-                    : `Table ${newOrder?.table?.number}`;
-
-                showNotification({
-                    title: `New Kitchen Order - ${tableInfo}`,
-                    body: `${newOrder?.items?.length || 0} items to prepare`,
-                });
-            }
-            prevPendingCount.current = currentPendingCount;
+        if (pendingOrdersCount > prevPendingCount.current) {
+            showNotification({
+                title: selectedStationId ? `New Station Order` : `New Kitchen Order`,
+                body: `${pendingOrdersCount - prevPendingCount.current} new items`,
+            });
         }
-    }, [orders, pendingOrders.length, showNotification]);
+        prevPendingCount.current = pendingOrdersCount;
+    }, [pendingOrdersCount, showNotification, selectedStationId]);
 
-    // Auto-Print Logic (Keep per-order logic for tickets)
+
+    // Auto-Print Logic (Simplified: just print new incoming orders if enabled)
+    // NOTE: Printing usually prints the WHOLE ticket. Station-specific printing is harder from web directly without backend print services.
+    // For now, we print the whole ticket if "Auto Print" is on, regardless of Station (or we could filter).
+    // Let's keep existing logic but just check if it's in relevantOrders.
     useEffect(() => {
-        if (!orders || !isAutoPrintEnabled) return;
+        if (!relevantOrders || !isAutoPrintEnabled) return;
+        const newOrders = relevantOrders.filter((order: any) => !printedOrderIds.includes(order._id));
+        // Only print if status is strictly pending (brand new)
+        const brandNew = newOrders.filter((o: any) => o.status === "pending" || o.status === "needs_approval");
 
-        const newOrders = pendingOrders.filter((order: any) => !printedOrderIds.includes(order._id));
-        const uniqueNewOrders = newOrders.filter((newOrder: any) =>
+        const uniqueBrandNew = brandNew.filter((newOrder: any) =>
             !printQueue.some(qOrder => qOrder._id === newOrder._id)
         );
 
-        if (uniqueNewOrders.length > 0) {
-            setPrintQueue(prev => [...prev, ...uniqueNewOrders]);
+        if (uniqueBrandNew.length > 0) {
+            setPrintQueue(prev => [...prev, ...uniqueBrandNew]);
         }
-    }, [orders, isAutoPrintEnabled, printedOrderIds, pendingOrders, printQueue]);
+    }, [relevantOrders, isAutoPrintEnabled, printedOrderIds, printQueue]);
+
 
     // Process Print Queue
     const processQueue = useCallback(() => {
@@ -173,6 +205,8 @@ export default function KitchenPage() {
         }, 100);
 
         const cleanup = () => {
+            // Don't effectively mark as "printed" for auto-queue if manual, 
+            // but we track it to avoid double auto-print if happened same time.
             if (!printedOrderIds.includes(order._id)) {
                 setPrintedOrderIds(prev => [...prev, order._id]);
             }
@@ -199,48 +233,67 @@ export default function KitchenPage() {
         return <div className="p-8 text-center text-red-500">Restaurant Unavailable</div>;
     }
 
-    // Batch Update Handler
+    // ITEM ACTION HANDLER
+    const handleItemAction = async (itemId: string, action: "start" | "ready" | "cancel") => {
+        let status = "preparing";
+        if (action === "ready") status = "ready";
+        if (action === "cancel") status = "cancelled";
+
+        await updateItemStatus({ orderItemId: itemId as any, status: status as any });
+    };
+
+    // BATCH (Group) ACTION HANDLER
     const handleGroupAction = async (group: any, action: "start_cooking" | "mark_ready" | "serve") => {
-        // Collect IDs of orders that need updating
-        let targetStatus: "preparing" | "ready" | "served" | "paid" = "preparing";
-        let ordersToUpdate: any[] = [];
-        let confirmMessage = "";
+        // We filter VALID ITEMS for this station/group state.
+        const items = group.validItems;
+
+        let itemsToUpdate: any[] = [];
+        let targetStatus: "preparing" | "ready" | "served" = "preparing";
 
         if (action === "start_cooking") {
             targetStatus = "preparing";
-            ordersToUpdate = group.orders.filter((o: any) => o.status === "pending");
+            // Start everything that is pending
+            itemsToUpdate = items.filter((i: any) => !i.status || i.status === "pending" || i.status === "needs_approval");
         } else if (action === "mark_ready") {
             targetStatus = "ready";
-            ordersToUpdate = group.orders.filter((o: any) => o.status === "preparing");
+            // Ready everything that is preparing (or pending if jumping steps)
+            itemsToUpdate = items.filter((i: any) => i.status === "preparing" || i.status === "pending" || i.status === "needs_approval");
         } else if (action === "serve") {
-            confirmMessage = "Are you sure you want to clear this table? This will remove it from the screen.";
-            targetStatus = "served"; // Or paid, depending on workflow, usually KDS does Served
-            ordersToUpdate = group.orders.filter((o: any) => o.status === "ready");
+            if (!window.confirm("Clear this table from screen?")) return;
+            targetStatus = "served";
+            itemsToUpdate = items.filter((i: any) => i.status === "ready");
         }
 
-        if (confirmMessage && !window.confirm(confirmMessage)) {
-            return;
-        }
-
-        const ids = ordersToUpdate.map(o => o._id);
-        if (ids.length > 0) {
-            await updateBatchStatus({ orderIds: ids, status: targetStatus });
+        // Execute parallel updates
+        if (itemsToUpdate.length > 0) {
+            await Promise.all(itemsToUpdate.map(i =>
+                updateItemStatus({ orderItemId: i._id, status: targetStatus })
+            ));
         }
     };
 
     const PrintableOrder = ({ order }: { order: any }) => {
-        // ... (Keep existing printable order logic as it prints per ticket/order)
+        // ... (Keep existing printable order logic mostly same, maybe filter items if Station Selected?)
+        // For physical tickets, usually you want everything or station specific. 
+        // Let's filter items if station selected to print "Station Ticket".
         if (!order) return null;
+
+        const itemsToPrint = selectedStationId
+            ? order.items.filter((i: any) => i.stationId === selectedStationId)
+            : order.items;
+
+        if (itemsToPrint.length === 0) return null;
+
         return (
             <div className="hidden print:block p-4 text-black bg-white w-full max-w-[80mm] mx-auto font-mono text-sm">
                 <div className="text-center border-b-2 border-black pb-2 mb-2">
-                    <h1 className="text-xl font-bold uppercase">{restaurant.name}</h1>
+                    <h1 className="text-xl font-bold uppercase">{selectedStationId ? stations?.find((s: any) => s._id === selectedStationId)?.name : restaurant.name}</h1>
                     <p className="text-xs">{new Date(order._creationTime).toLocaleString()}</p>
                     <h2 className="text-2xl font-bold mt-2">TABLE {order.table?.number}</h2>
                     <p className="text-xs">Order #{order._id.slice(-6)}</p>
                 </div>
                 <div className="space-y-4 mb-4">
-                    {order.items.map((item: any, idx: number) => (
+                    {itemsToPrint.map((item: any, idx: number) => (
                         <div key={idx} className="border-b border-dashed border-gray-400 pb-2">
                             <div className="flex justify-between items-start">
                                 <span className="font-bold text-lg">{item.quantity}x</span>
@@ -251,6 +304,9 @@ export default function KitchenPage() {
                                     NOTE: {item.notes}
                                 </div>
                             )}
+                            {item.modifiers && item.modifiers.map((mod: any, mIdx: number) => (
+                                <div key={mIdx} className="text-xs ml-8">+ {mod.quantity > 1 ? `${mod.quantity}x ` : ""}{mod.name}</div>
+                            ))}
                         </div>
                     ))}
                 </div>
@@ -263,8 +319,7 @@ export default function KitchenPage() {
 
     const OrderGroupCard = ({ group, actionLabel, onAction, isNew }: { group: any, actionLabel?: string, onAction?: () => void, isNew?: boolean }) => {
         // Find the "primary" timestamp (earliest)
-        const startTime = group.orders[0]._creationTime;
-
+        const startTime = group.orders[0]._creationTime; // approximated
         // Detect Takeaway
         const isTakeaway = group.table?.isVirtual || group.table?.number?.toString().toUpperCase().startsWith("TAKEAWAY");
 
@@ -287,49 +342,76 @@ export default function KitchenPage() {
                         {isTakeaway && group.table?.number && (
                             <div className="text-xs text-amber-500/70 font-mono">#{group.table.number}</div>
                         )}
-                        <div className="text-xs text-gray-400">{group.orders.length} Tickets</div>
+                        <div className="text-xs text-gray-400">{group.validItems.length} Items</div>
                     </div>
                     <span className="text-sm text-gray-400">{new Date(startTime).toLocaleTimeString()}</span>
                 </div>
 
                 <div className="space-y-4 mb-4">
-                    {group.orders.map((order: any) => (
-                        <div key={order._id} className="relative pl-3 border-l-2 border-gray-600">
-                            {/* Individual Print Button */}
-                            <button
-                                onClick={(e) => handleManualPrint(order, e)}
-                                className="absolute top-0 right-0 p-1 text-gray-500 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                                title="Print Ticket"
-                            >
-                                <Printer size={14} />
-                            </button>
+                    {group.orders.map((order: any) => {
+                        // Filter items again for display
+                        const displayItems = order.items.filter((i: any) => selectedStationId ? i.stationId === selectedStationId : true);
+                        if (displayItems.length === 0) return null;
 
-                            <div className="text-xs text-gray-500 mb-1">Ticket #{order._id.slice(-4)} • {order.status}</div>
-                            {order.items.map((item: any, idx: number) => (
-                                <div key={idx} className="mb-2 last:mb-0">
-                                    <div className="flex items-start gap-2">
-                                        <span className={clsx("text-lg font-bold", order.status === "pending" ? "text-white" : "text-gray-400")}>{item.quantity}x</span>
-                                        <span className={clsx("text-lg font-medium", order.status === "pending" ? "text-gray-200" : "text-gray-500")}>{item.menuItem?.name}</span>
-                                    </div>
-                                    {item.notes && (
-                                        <div className="mt-1 bg-yellow-900/30 text-yellow-300 p-1 rounded text-sm font-bold border border-yellow-600/30 inline-block">
-                                            {item.notes}
-                                        </div>
-                                    )}
-                                    {/* Render Modifiers */}
-                                    {item.modifiers && item.modifiers.length > 0 && (
-                                        <div className="mt-1 pl-2 border-l-2 border-gray-600 space-y-0.5">
-                                            {item.modifiers.map((mod: any, mIdx: number) => (
-                                                <div key={mIdx} className="text-sm text-gray-400">
-                                                    + {mod.quantity > 1 ? `${mod.quantity}x ` : ""}{mod.name}
+                        return (
+                            <div key={order._id} className="relative pl-3 border-l-2 border-gray-600">
+                                {/* Individual Print Button */}
+                                <button
+                                    onClick={(e) => handleManualPrint(order, e)}
+                                    className="absolute top-0 right-0 p-1 text-gray-500 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title="Print Ticket"
+                                >
+                                    <Printer size={14} />
+                                </button>
+
+                                <div className="text-xs text-gray-500 mb-1">Ticket #{order._id.slice(-4)}</div>
+                                {displayItems.map((item: any, idx: number) => {
+                                    // Item Status Color
+                                    // if item status matches column, bold white. Else gray.
+                                    const isItemPending = !item.status || item.status === "pending" || item.status === "needs_approval";
+                                    const isItemPrep = item.status === "preparing";
+                                    const isItemReady = item.status === "ready";
+
+                                    return (
+                                        <div key={idx} className="mb-2 last:mb-0 flex justify-between items-start group/item">
+                                            <div className="flex-1">
+                                                <div className="flex items-start gap-2">
+                                                    <span className={clsx("text-lg font-bold", isItemPending ? "text-white" : "text-gray-400")}>{item.quantity}x</span>
+                                                    <span className={clsx("text-lg font-medium", isItemPending ? "text-gray-200" : "text-gray-500", (item.status === "ready" || item.status === "served") && "line-through opacity-50")}>
+                                                        {item.menuItem?.name}
+                                                    </span>
                                                 </div>
-                                            ))}
+                                                {item.notes && (
+                                                    <div className="mt-1 bg-yellow-900/30 text-yellow-300 p-1 rounded text-sm font-bold border border-yellow-600/30 inline-block">
+                                                        {item.notes}
+                                                    </div>
+                                                )}
+                                                {item.modifiers && item.modifiers.map((mod: any, mIdx: number) => (
+                                                    <div key={mIdx} className="text-sm text-gray-400 ml-6">
+                                                        + {mod.quantity > 1 ? `${mod.quantity}x ` : ""}{mod.name}
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {/* Quick Actions per Item (Hover) */}
+                                            <div className="opacity-0 group-hover/item:opacity-100 flex gap-1 items-center transition-opacity bg-gray-800 p-1 rounded">
+                                                {isItemPending && (
+                                                    <button onClick={() => handleItemAction(item._id, "start")} className="p-1 bg-blue-900/50 text-blue-400 rounded hover:bg-blue-900" title="Start">
+                                                        <Volume2 className="w-4 h-4" /> {/* Cooking Icon replacement */}
+                                                    </button>
+                                                )}
+                                                {isItemPrep && (
+                                                    <button onClick={() => handleItemAction(item._id, "ready")} className="p-1 bg-green-900/50 text-green-400 rounded hover:bg-green-900" title="Ready">
+                                                        <Volume2 className="w-4 h-4" /> {/* Check Icon */}
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    ))}
+                                    );
+                                })}
+                            </div>
+                        );
+                    })}
                 </div>
 
                 {actionLabel && onAction && (
@@ -355,7 +437,21 @@ export default function KitchenPage() {
             <div className="h-full flex flex-col p-4 gap-4 print:hidden">
 
                 <header className="flex justify-between items-center mb-2">
-                    <h1 className="text-2xl font-bold text-white">Kitchen Display System (Group View)</h1>
+                    <div className="flex items-center gap-4">
+                        <h1 className="text-2xl font-bold text-white">Kitchen Display</h1>
+
+                        {/* STATION SELECTOR */}
+                        <select
+                            value={selectedStationId}
+                            onChange={(e) => handleStationChange(e.target.value)}
+                            className="bg-gray-800 text-white border border-gray-700 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-[#D4AF37] outline-none"
+                        >
+                            <option value="">All Stations (Master)</option>
+                            {stations?.map((s: any) => (
+                                <option key={s._id} value={s._id}>{s.name}</option>
+                            ))}
+                        </select>
+                    </div>
 
                     <div className="flex items-center gap-6">
                         <div
@@ -377,10 +473,10 @@ export default function KitchenPage() {
                             </div>
                         </div>
 
-                        <div className="flex gap-4 text-sm font-medium">
-                            <span className="text-red-400">{pendingGroups.length} New Tables</span>
-                            <span className="text-blue-400">{preparingGroups.length} Preparing Tables</span>
-                            <span className="text-green-400">{readyGroups.length} Ready Tables</span>
+                        <div className="hidden md:flex gap-4 text-sm font-medium">
+                            <span className="text-red-400">{pendingGroups.length} New</span>
+                            <span className="text-blue-400">{preparingGroups.length} Prep</span>
+                            <span className="text-green-400">{readyGroups.length} Ready</span>
                         </div>
                     </div>
                 </header>
@@ -483,9 +579,6 @@ export default function KitchenPage() {
                                 <OrderGroupCard
                                     key={group.tableId}
                                     group={group}
-                                    // Action here could be "Served" if we want to remove it manually
-                                    // But usually waiter picks it up.
-                                    // We can add "Mark Served" to clear it.
                                     actionLabel="Mark Served (Clear)"
                                     onAction={() => handleGroupAction(group, "serve")}
                                 />
@@ -500,4 +593,3 @@ export default function KitchenPage() {
         </div>
     );
 }
-
