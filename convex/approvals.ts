@@ -16,6 +16,17 @@ export const approveOrder = mutation({
 
         // Move to "pending" (which usually means Sent to Kitchen)
         await ctx.db.patch(args.orderId, { status: "pending" });
+
+        // CRITICAL FIX: Also update status of all items in this order to "pending"
+        // Otherwise they remain "needs_approval" and are filtered out by Kitchen
+        const items = await ctx.db
+            .query("orderItems")
+            .withIndex("by_order", (q) => q.eq("orderId", args.orderId))
+            .collect();
+
+        for (const item of items) {
+            await ctx.db.patch(item._id, { status: "pending" });
+        }
     },
 });
 

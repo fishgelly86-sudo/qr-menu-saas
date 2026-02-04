@@ -85,7 +85,7 @@ export default function KitchenPage() {
         !o.isArchived &&
         o.items.some((i: any) =>
             (selectedStationId ? i.stationId === selectedStationId : true) &&
-            ["pending", "preparing", "ready", "needs_approval"].includes(i.status || "pending")
+            ["pending", "preparing", "ready"].includes(i.status || "pending")
         )
     ) || [];
 
@@ -104,7 +104,7 @@ export default function KitchenPage() {
             o.items.filter((i: any) => selectedStationId ? i.stationId === selectedStationId : true)
         );
 
-        const hasPending = validItems.some((i: any) => !i.status || i.status === "pending" || i.status === "needs_approval");
+        const hasPending = validItems.some((i: any) => !i.status || i.status === "pending");
         const hasPreparing = validItems.some((i: any) => i.status === "preparing");
 
         // Logic: 
@@ -134,7 +134,7 @@ export default function KitchenPage() {
     const readyGroups = groups.filter(g => g.status === "ready");
 
     // Audio Alert Logic
-    const pendingOrdersCount = pendingGroups.reduce((acc, g) => acc + g.validItems.filter((i: any) => !i.status || i.status === "pending" || i.status === "needs_approval").length, 0);
+    const pendingOrdersCount = pendingGroups.reduce((acc, g) => acc + g.validItems.filter((i: any) => !i.status || i.status === "pending").length, 0);
 
     useEffect(() => {
         if (pendingOrdersCount > prevPendingCount.current) {
@@ -155,7 +155,7 @@ export default function KitchenPage() {
         if (!relevantOrders || !isAutoPrintEnabled) return;
         const newOrders = relevantOrders.filter((order: any) => !printedOrderIds.includes(order._id));
         // Only print if status is strictly pending (brand new)
-        const brandNew = newOrders.filter((o: any) => o.status === "pending" || o.status === "needs_approval");
+        const brandNew = newOrders.filter((o: any) => o.status === "pending");
 
         const uniqueBrandNew = brandNew.filter((newOrder: any) =>
             !printQueue.some(qOrder => qOrder._id === newOrder._id)

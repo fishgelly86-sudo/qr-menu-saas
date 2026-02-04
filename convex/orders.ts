@@ -191,7 +191,7 @@ export const createOrder = mutation({
         modifiers: item.modifiers,
         price: item.price,
         addedAt,
-        status: initialStatus as "pending" | "preparing" | "ready" | "served" | "cancelled",
+        status: initialStatus as "pending" | "preparing" | "ready" | "served" | "cancelled" | "needs_approval",
       });
     }
 
